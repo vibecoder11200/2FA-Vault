@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2FA-Vault</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+        </svg>
+        <h1>2FA-Vault</h1>
+      </div>
+      <div class="status-indicator" id="status-indicator">
+        <span class="dot"></span>
+        <span id="status-text">Offline</span>
+      </div>
+    </div>
+
+    <!-- Lock Screen -->
+    <div id="lock-screen" class="lock-screen hidden">
+      <div class="lock-icon">🔒</div>
+      <h2>Vault Locked</h2>
+      <p>Enter your master password to unlock</p>
+      <form id="unlock-form">
+        <input 
+          type="password" 
+          id="master-password" 
+          placeholder="Master password" 
+          required
+          autocomplete="current-password"
+        >
+        <button type="submit" class="btn btn-primary">Unlock</button>
+      </form>
+      <div id="unlock-error" class="error-message hidden"></div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content" class="hidden">
+      <!-- Search & Actions -->
+      <div class="toolbar">
+        <input 
+          type="search" 
+          id="search-input" 
+          placeholder="Search accounts..."
+          class="search-input"
+        >
+        <button id="add-account-btn" class="btn btn-icon" title="Add account">
+          ➕
+        </button>
+        <button id="lock-btn" class="btn btn-icon" title="Lock vault">
+          🔒
+        </button>
+      </div>
+
+      <!-- Account List -->
+      <div id="account-list" class="account-list">
+        <!-- Accounts will be rendered here -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="empty-state hidden">
+        <div class="empty-icon">📱</div>
+        <h3>No Accounts Yet</h3>
+        <p>Add your first 2FA account to get started</p>
+        <button class="btn btn-primary" id="add-first-account">Add Account</button>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <button id="sync-btn" class="btn btn-text">
+          <span id="sync-icon">🔄</span>
+          <span id="sync-text">Sync</span>
+        </button>
+        <button id="settings-btn" class="btn btn-text">
+          ⚙️ Settings
+        </button>
+      </div>
+    </div>
+
+    <!-- Add Account Modal -->
+    <div id="add-account-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Add 2FA Account</h2>
+          <button class="close-btn" id="close-modal">✕</button>
+        </div>
+        <form id="add-account-form">
+          <div class="form-group">
+            <label for="account-name">Account Name *</label>
+            <input type="text" id="account-name" required placeholder="e.g., GitHub">
+          </div>
+          <div class="form-group">
+            <label for="account-issuer">Issuer (Optional)</label>
+            <input type="text" id="account-issuer" placeholder="e.g., GitHub Inc.">
+          </div>
+          <div class="form-group">
+            <label for="account-secret">Secret Key *</label>
+            <input type="text" id="account-secret" required placeholder="Base32 secret">
+            <small>The secret key from your 2FA QR code</small>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="cancel-add">Cancel</button>
+            <button type="submit" class="btn btn-primary">Add Account</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="../shared/crypto.js"></script>
+  <script src="../shared/storage.js"></script>
+  <script src="../shared/api.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

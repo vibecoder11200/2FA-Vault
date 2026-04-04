@@ -1,0 +1,50 @@
+{
+  "manifest_version": 2,
+  "name": "2FA-Vault",
+  "version": "1.0.0",
+  "description": "Secure 2FA manager with E2EE - Autofill OTP codes",
+  "permissions": ["activeTab", "storage", "alarms", "notifications", "http://localhost:8000/*", "https://*/"],
+  "browser_action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "scripts": ["background/service-worker.js"]
+  },
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content/content.js"],
+    "run_at": "document_idle"
+  }],
+  "options_ui": {
+    "page": "options/options.html"
+  },
+  "commands": {
+    "_execute_browser_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+2"
+      }
+    },
+    "autofill": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+V"
+      },
+      "description": "Autofill OTP code"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "2fa-vault@example.com",
+      "strict_min_version": "57.0"
+    }
+  }
+}
