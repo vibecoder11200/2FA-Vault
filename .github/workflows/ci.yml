@@ -12,16 +12,6 @@ jobs:
     name: Backend Tests (PHP)
     runs-on: ubuntu-latest
 
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: 2fauth_test
-        ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,7 +20,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: bcmath, ctype, dom, fileinfo, gd, json, mbstring, openssl, tokenizer, xml, pdo_mysql, pdo_sqlite
+          extensions: bcmath, ctype, dom, fileinfo, gd, json, mbstring, openssl, tokenizer, xml, pdo_sqlite
           coverage: none
 
       - name: Copy environment file
@@ -42,53 +32,20 @@ jobs:
       - name: Generate application key
         run: php artisan key:generate
 
-      - name: Run database migrations (SQLite)
-        run: |
-          touch database/database.sqlite
-          php artisan migrate --force
+      - name: Run database migrations
+        run: php artisan migrate --force
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: database/database.sqlite
 
-      - name: Run PHPUnit tests (SQLite)
+      - name: Run PHPUnit tests
         run: ./vendor/bin/phpunit
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: database/database.sqlite
 
-  frontend-build:
-    name: Frontend Build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Checkout 2FAuth-Components
-        run: git clone https://github.com/Bubka/2FAuth-Components.git ../2FAuth-Components
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Install 2FAuth-Components dependencies
-        run: |
-          cd ../2FAuth-Components
-          pnpm install
-          pnpm build
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Build frontend
-        run: npm run build
-
   lint:
-    name: Lint
+    name: Code Style Check
     runs-on: ubuntu-latest
 
     steps:
@@ -107,3 +64,23 @@ jobs:
       - name: Run Laravel Pint
         run: ./vendor/bin/pint --test
         continue-on-error: true
+
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: 2fauth-vault:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

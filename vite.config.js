@@ -87,6 +87,13 @@ export default defineConfig({
             '@kyvg/vue3-notification',
         ],
     },
+    css: {
+        preprocessorOptions: {
+            scss: {
+                silenceDeprecations: ['legacy-js-api'],
+            },
+        },
+    },
     build: {
         // sourcemap: true,
         rollupOptions: {
