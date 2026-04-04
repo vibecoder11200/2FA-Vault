@@ -28,6 +28,10 @@ class UserModelTest extends ModelTestCase
                 'email_verified_at'  => 'datetime',
                 'password'           => 'hashed',
                 'is_admin'           => 'boolean',
+                'is_active'          => 'boolean',
+                'encryption_version' => 'integer',
+                'vault_locked'       => 'boolean',
+                'last_backup_at'     => 'datetime',
                 'twofaccounts_count' => 'integer',
                 'groups_count'       => 'integer',
             ]
