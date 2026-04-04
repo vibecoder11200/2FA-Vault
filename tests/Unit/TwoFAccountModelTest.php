@@ -33,6 +33,7 @@ class TwoFAccountModelTest extends ModelTestCase
             [
                 'id'      => 'int',
                 'user_id' => 'integer',
+                'encrypted' => 'boolean',
             ],
             ['deleted' => TwoFAccountDeleted::class],
             ['created_at', 'updated_at'],
