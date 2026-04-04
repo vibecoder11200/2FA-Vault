@@ -21,6 +21,9 @@ const router = createRouter({
 		{ path: '/start', name: 'start', component: () => import('../views/Start.vue'), meta: { middlewares: [authGuard, syncAppSettings, setReturnTo], watchedByKicker: true } },
         { path: '/capture', name: 'capture', component: () => import('../views/twofaccounts/Capture.vue'), meta: { middlewares: [authGuard, syncAppSettings, setReturnTo], watchedByKicker: true } },
 
+        { path: '/setup-encryption', name: 'setup-encryption', component: () => import('../views/SetupEncryption.vue'), meta: { middlewares: [authGuard, syncAppSettings], watchedByKicker: true } },
+        { path: '/unlock-vault', name: 'unlock-vault', component: () => import('../views/UnlockVault.vue'), meta: { middlewares: [authGuard, syncAppSettings], watchedByKicker: true } },
+
         { path: '/accounts', name: 'accounts', component: () => import('../views/twofaccounts/Accounts.vue'), meta: { middlewares: [authGuard, syncAppSettings, starter, setReturnTo], watchedByKicker: true }, alias: '/' },
         { path: '/account/create', name: 'createAccount', component: () => import('../views/twofaccounts/CreateUpdate.vue'), meta: { middlewares: [authGuard, syncAppSettings, setReturnTo], watchedByKicker: true } },
         { path: '/account/import', name: 'importAccounts', component: () => import('../views/twofaccounts/Import.vue'), meta: { middlewares: [authGuard, syncAppSettings, setReturnTo], watchedByKicker: true } },

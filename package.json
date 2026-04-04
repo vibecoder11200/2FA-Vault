@@ -35,5 +35,8 @@
         "vue-i18n": "^11.2.8",
         "vue-qrcode-reader": "^5.7.3",
         "vue-router": "^5.0.2"
+    },
+    "dependencies": {
+        "argon2-browser": "^1.18.0"
     }
 }

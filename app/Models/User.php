@@ -100,6 +100,8 @@ class User extends Authenticatable implements HasLocalePreference, WebAuthnAuthe
     protected $hidden = [
         'password',
         'remember_token',
+        'encryption_salt',
+        'encryption_test_value',
     ];
 
     /**
@@ -113,6 +115,8 @@ class User extends Authenticatable implements HasLocalePreference, WebAuthnAuthe
         'is_admin'           => 'boolean',
         'twofaccounts_count' => 'integer',
         'groups_count'       => 'integer',
+        'encryption_version' => 'integer',
+        'vault_locked'       => 'boolean',
     ];
 
     /**

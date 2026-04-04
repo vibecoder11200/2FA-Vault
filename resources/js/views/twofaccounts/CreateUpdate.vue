@@ -4,10 +4,12 @@
     import { FormProtectedField } from '@2fauth/formcontrols'
     import twofaccountService from '@/services/twofaccountService'
     import iconService from '@/services/iconService'
+    import cryptoService from '@/services/crypto'
     import { useUserStore } from '@/stores/user'
     import { useTwofaccounts } from '@/stores/twofaccounts'
     import { useGroups } from '@/stores/groups'
     import { useBusStore } from '@/stores/bus'
+    import { useCryptoStore } from '@/stores/crypto'
     import { useNotify, OtpDisplay } from '@2fauth/ui'
     import { UseColorMode } from '@vueuse/components'
     import { useI18n } from 'vue-i18n'
@@ -28,6 +30,7 @@
     const user = useUserStore()
     const twofaccounts = useTwofaccounts()
     const bus = useBusStore()
+    const cryptoStore = useCryptoStore()
     const notify = useNotify()
     const form = reactive(new Form({
         service: '',
@@ -143,7 +146,16 @@
         if (route.name == 'editAccount') {
             showSpinner.value = true
 
-            twofaccountService.get(props.twofaccountId).then(response => {
+            twofaccountService.get(props.twofaccountId).then(async response => {
+                // Decrypt secret if vault is unlocked
+                if (cryptoStore.isVaultUnlocked && response.data.secret) {
+                    try {
+                        response.data.secret = await cryptoService.decryptSecret(response.data.secret)
+                    } catch (error) {
+                        console.error('Failed to decrypt secret:', error)
+                    }
+                }
+
                 form.fill(response.data)
                 if (form.group_id == null) {
                     form.group_id = 0
@@ -262,6 +274,16 @@
         // set current temp icon as account icon
         form.icon = tempIcon.value
 
+        // Encrypt secret if vault is unlocked
+        if (cryptoStore.isVaultUnlocked && form.secret) {
+            try {
+                form.secret = await cryptoService.encryptSecret(form.secret)
+            } catch (error) {
+                notify.error({ text: t('notification.encryption_failed') })
+                return
+            }
+        }
+
         const { data } = await form.post('/api/v1/twofaccounts')
 
         if (form.errors.any() === false) {
@@ -284,6 +306,16 @@
             form.icon = tempIcon.value
             tempIcon.value = oldIcon
             deleteTempIcon()
+        }
+
+        // Encrypt secret if vault is unlocked
+        if (cryptoStore.isVaultUnlocked && form.secret) {
+            try {
+                form.secret = await cryptoService.encryptSecret(form.secret)
+            } catch (error) {
+                notify.error({ text: t('notification.encryption_failed') })
+                return
+            }
         }
 
         const { data } = await form.put('/api/v1/twofaccounts/' + props.twofaccountId)

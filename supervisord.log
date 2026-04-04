@@ -1,0 +1,7 @@
+time="2026-04-04T15:12:30Z" level=info msg="create process:php-fpm"
+time="2026-04-04T15:12:30Z" level=info msg="create process:nginx"
+time="2026-04-04T15:12:30Z" level=info msg="stop listening"
+time="2026-04-04T15:12:30Z" level=info msg="try to start program" program=php-fpm
+time="2026-04-04T15:12:30Z" level=info msg="try to start program" program=nginx
+time="2026-04-04T15:12:31Z" level=info msg="success to start program" program=nginx
+time="2026-04-04T15:12:31Z" level=info msg="success to start program" program=php-fpm
