@@ -68,9 +68,16 @@ Route::group(['middleware' => 'auth:api-guard'], function () {
     // E2EE Encryption routes
     Route::post('encryption/setup', [EncryptionController::class, 'setup'])->name('encryption.setup');
     Route::get('encryption/info', [EncryptionController::class, 'info'])->name('encryption.info');
+    Route::get('encryption/status', [EncryptionController::class, 'checkEncryptionStatus'])->name('encryption.status');
     Route::post('encryption/verify', [EncryptionController::class, 'verify'])->name('encryption.verify');
     Route::post('encryption/lock', [EncryptionController::class, 'lock'])->name('encryption.lock');
     Route::delete('encryption/disable', [EncryptionController::class, 'disable'])->name('encryption.disable');
+
+    // Backup routes
+    Route::get('backup/export', [\App\Http\Controllers\BackupController::class, 'export'])->name('backup.export');
+    Route::post('backup/import', [\App\Http\Controllers\BackupController::class, 'import'])->name('backup.import');
+    Route::post('backup/metadata', [\App\Http\Controllers\BackupController::class, 'metadata'])->name('backup.metadata');
+    Route::get('backup/info', [\App\Http\Controllers\BackupController::class, 'info'])->name('backup.info');
 
     // Teams routes
     Route::get('teams', [TeamController::class, 'index'])->name('teams.index');

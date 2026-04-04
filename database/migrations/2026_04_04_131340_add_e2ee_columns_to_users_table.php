@@ -18,11 +18,14 @@ return new class extends Migration
             // Encrypted test value for zero-knowledge password verification
             $table->text('encryption_test_value')->nullable()->after('encryption_salt');
             
-            // Encryption version for future compatibility
-            $table->tinyInteger('encryption_version')->default(0)->after('encryption_test_value');
+            // Encryption version for future compatibility (1 = enabled by default)
+            $table->tinyInteger('encryption_version')->default(1)->after('encryption_test_value');
             
-            // Vault lock status (session-based)
+            // Vault lock status (session-based, unlocked by default)
             $table->boolean('vault_locked')->default(false)->after('encryption_version');
+            
+            // Track last backup date
+            $table->timestamp('last_backup_at')->nullable()->after('vault_locked');
         });
     }
 
@@ -36,7 +39,8 @@ return new class extends Migration
                 'encryption_salt',
                 'encryption_test_value',
                 'encryption_version',
-                'vault_locked'
+                'vault_locked',
+                'last_backup_at'
             ]);
         });
     }
