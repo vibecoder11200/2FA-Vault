@@ -19,4 +19,9 @@ export default [
         'view' : 'settings.webauthn.devices',
         'id'   : 'lnkTabWebauthn'
     },
+    {
+        'name' : 'label.backup',
+        'view' : 'settings.backup',
+        'id'   : 'lnkTabBackup'
+    },
 ]

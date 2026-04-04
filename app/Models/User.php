@@ -118,6 +118,7 @@ class User extends Authenticatable implements HasLocalePreference, WebAuthnAuthe
         'groups_count'       => 'integer',
         'encryption_version' => 'integer',
         'vault_locked'       => 'boolean',
+        'last_backup_at'     => 'datetime',
     ];
 
     /**

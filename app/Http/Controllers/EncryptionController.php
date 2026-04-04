@@ -184,6 +184,26 @@ class EncryptionController extends Controller
     }
     
     /**
+     * Check if user has E2EE set up
+     * 
+     * @return JsonResponse
+     */
+    public function checkEncryptionStatus(): JsonResponse
+    {
+        $user = Auth::user();
+        $encryptionEnabled = $user->encryption_version > 0;
+        
+        return response()->json([
+            'encryption_enabled' => $encryptionEnabled,
+            'encryption_version' => $user->encryption_version,
+            'vault_locked' => $encryptionEnabled ? $user->vault_locked : false,
+            'has_backup' => !is_null($user->last_backup_at),
+            'last_backup_at' => $user->last_backup_at?->toIso8601String(),
+            'should_prompt_setup' => !$encryptionEnabled && config('2fauth.settings.encryptionEnabledByDefault', true)
+        ]);
+    }
+    
+    /**
      * Disable E2EE (requires re-authentication and data migration)
      * 
      * @param Request $request

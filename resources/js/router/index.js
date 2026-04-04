@@ -40,6 +40,7 @@ const router = createRouter({
 
         { path: '/settings/options', name: 'settings.options', component: () => import('../views/settings/Options.vue'), meta: { middlewares: [authGuard, syncAppSettings], watchedByKicker: true, showAbout: true } },
         { path: '/settings/account', name: 'settings.account', component: () => import('../views/settings/Account.vue'), meta: { middlewares: [authGuard, syncAppSettings], watchedByKicker: true, showAbout: true } },
+        { path: '/settings/backup', name: 'settings.backup', component: () => import('../views/settings/BackupRestore.vue'), meta: { middlewares: [authGuard, syncAppSettings], watchedByKicker: true, showAbout: true } },
         { path: '/settings/oauth', name: 'settings.oauth.tokens', component: () => import('../views/settings/OAuth.vue'), meta: { middlewares: [authGuard, syncAppSettings], watchedByKicker: true, showAbout: true, props: true } },
         { path: '/settings/webauthn/:credentialId/edit', name: 'settings.webauthn.editCredential', component: () => import('../views/settings/Credentials/Edit.vue'), meta: { middlewares: [authGuard, syncAppSettings], watchedByKicker: true, showAbout: true }, props: true },
         { path: '/settings/webauthn', name: 'settings.webauthn.devices', component: () => import('../views/settings/WebAuthn.vue'), meta: { middlewares: [authGuard, syncAppSettings], watchedByKicker: true, showAbout: true } },

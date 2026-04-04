@@ -156,6 +156,7 @@ return [
 
     'settings' => [
         'useEncryption' => false,
+        'encryptionEnabledByDefault' => env('ENCRYPTION_ENABLED_BY_DEFAULT', true),
         'checkForUpdate' => true,
         'lastRadarScan' => 0,
         'latestRelease' => false,
