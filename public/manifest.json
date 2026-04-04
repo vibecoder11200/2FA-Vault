@@ -1,32 +1,24 @@
 {
-  "short_name": "2FAuth",
-  "name": "2FAuth",
-  "icons": [
-    {
-      "src": "/favicon_lg.png",
-      "type": "image/png",
-      "sizes": "180x180"
-    }
-  ],
+  "name": "2FA-Vault",
+  "short_name": "2FA-Vault",
+  "description": "Secure 2FA manager with E2EE",
   "start_url": "/",
   "display": "standalone",
-  "scope": "/",
-  "theme_color": "#242424",
-  "shortcuts": [
+  "background_color": "#1a1a2e",
+  "theme_color": "#4f46e5",
+  "orientation": "any",
+  "icons": [
     {
-      "name": "New 2FA",
-      "url": "/start",
-      "description": "Add a new 2FA account by flashing a QR code or filling out a form"
+      "src": "/icons/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
     },
     {
-      "name": "Import 2FAs",
-      "url": "/account/import",
-      "description": "Import 2FA accounts previously exported from another 2FA app"
-    },
-    {
-      "name": "Settings",
-      "url": "/settings/options",
-      "description": "Manage your 2FAuth user settings"
+      "src": "/icons/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["security", "utilities", "productivity"]
 }
