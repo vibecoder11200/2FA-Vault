@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { startsWithUppercase } from '@/composables/helpers'
 import { useUserStore } from '@/stores/user'
+import { useCryptoStore } from '@/stores/crypto'
+import cryptoService from '@/services/crypto'
 import { useNotify } from '@2fauth/ui'
 import twofaccountService from '@/services/twofaccountService'
 import { saveAs } from 'file-saver'
@@ -90,7 +92,7 @@ export const useTwofaccounts = defineStore('twofaccounts', {
             if (isOutOfAge || force) {
                 this.fetchedOn = Date.now()
 
-                await twofaccountService.getAll(! useUserStore().preferences.getOtpOnRequest).then(response => {
+                await twofaccountService.getAll(! useUserStore().preferences.getOtpOnRequest).then(async response => {
                     // Defines if the store was up-to-date with the backend
                     if (force) {
                         this.backendWasNewer = response.data.length !== this.items.length
@@ -108,6 +110,20 @@ export const useTwofaccounts = defineStore('twofaccounts', {
                                 }
                             }
                         })
+                    }
+
+                    // Decrypt secrets if vault is unlocked
+                    const cryptoStore = useCryptoStore()
+                    if (cryptoStore.isVaultUnlocked) {
+                        for (let account of response.data) {
+                            if (account.secret) {
+                                try {
+                                    account.secret = await cryptoService.decryptSecret(account.secret)
+                                } catch (error) {
+                                    console.error('Failed to decrypt secret for account:', account.id, error)
+                                }
+                            }
+                        }
                     }
     
                     // Updates the state
