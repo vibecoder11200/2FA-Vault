@@ -162,7 +162,8 @@ class TwoFAccount extends Model implements Sortable
      * @var array<string, string>
      */
     protected $casts = [
-        'user_id' => 'integer',
+        'user_id'   => 'integer',
+        'encrypted' => 'boolean',
     ];
 
     /**

@@ -8,6 +8,7 @@ use App\Api\v1\Controllers\SettingController;
 use App\Api\v1\Controllers\TwoFAccountController;
 use App\Api\v1\Controllers\UserController;
 use App\Api\v1\Controllers\UserManagerController;
+use App\Http\Controllers\EncryptionController;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Route;
 
@@ -61,6 +62,13 @@ Route::group(['middleware' => 'auth:api-guard'], function () {
     // Feature flags
     Route::get('features', [FeatureFlagController::class, 'index'])->name('features.index');
     Route::get('features/{feature}', [FeatureFlagController::class, 'show'])->name('features.show');
+
+    // E2EE Encryption routes
+    Route::post('encryption/setup', [EncryptionController::class, 'setup'])->name('encryption.setup');
+    Route::get('encryption/info', [EncryptionController::class, 'info'])->name('encryption.info');
+    Route::post('encryption/verify', [EncryptionController::class, 'verify'])->name('encryption.verify');
+    Route::post('encryption/lock', [EncryptionController::class, 'lock'])->name('encryption.lock');
+    Route::delete('encryption/disable', [EncryptionController::class, 'disable'])->name('encryption.disable');
 });
 
 /**
