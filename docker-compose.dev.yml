@@ -1,25 +1,205 @@
+version: '3.8'
+
 services:
   app:
-    image: 2fauth/2fauth:latest
-    container_name: 2fauth-dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        UID: 1000
+        GID: 1000
+    container_name: 2fa-vault-dev-app
+    restart: unless-stopped
     ports:
-      - "8000:8000/tcp"
+      - "8000:8000"  # Laravel server
+      - "5173:5173"  # Vite dev server
     volumes:
-      - .:/srv
+      # Mount entire project for live reloading
+      - .:/srv:cached
+      # Persist vendor and node_modules (faster on Windows)
+      - vendor:/srv/vendor
+      - node_modules:/srv/node_modules
+      # Persist storage
+      - ./storage:/srv/storage
+      # Database
+      - ./database/database.sqlite:/srv/database/database.sqlite
     environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_URL: http://localhost:8000
-      APP_KEY: "base64:5mXva9j/GNGOgeXSAkJdp8AhBPDSiNhYiy24tJZyzrw="
-      DB_CONNECTION: sqlite
-      DB_DATABASE: "/srv/database/database.sqlite"
-      LOG_LEVEL: debug
+      # App Configuration
+      - APP_NAME=2FA-Vault-Dev
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_URL=http://localhost:8000
+      - APP_KEY=${APP_KEY:-base64:5mXva9j/GNGOgeXSAkJdp8AhBPDSiNhYiy24tJZyzrw=}
+      
+      # Database (SQLite for simplicity in dev)
+      - DB_CONNECTION=sqlite
+      - DB_DATABASE=/srv/database/database.sqlite
+      
+      # Cache & Sessions (file-based for dev simplicity)
+      - CACHE_DRIVER=file
+      - SESSION_DRIVER=file
+      - SESSION_LIFETIME=120
+      - QUEUE_CONNECTION=sync
+      
+      # Encryption (disabled for easier testing)
+      - ENCRYPTION_ENABLED=false
+      
+      # Multi-user Settings
+      - ALLOW_REGISTRATION=true
+      - MAX_TEAMS_PER_USER=10
+      
+      # Mail (log only in dev)
+      - MAIL_MAILER=log
+      - MAIL_FROM_ADDRESS=dev@2fa-vault.local
+      - MAIL_FROM_NAME=2FA-Vault-Dev
+      
+      # Logging
+      - LOG_CHANNEL=daily
+      - LOG_LEVEL=debug
+      
+      # Rate Limiting (relaxed in dev)
+      - THROTTLE_LOGIN=100,1
+      - THROTTLE_API=1000,1
+      
+      # Security (relaxed in dev)
+      - CONTENT_SECURITY_POLICY=false
+      - BLOCK_OPTAUTH_IMAGELINK_FETCHING=false
+      - TRUSTED_PROXIES=*
+      
+      # Vite
+      - VITE_DEV_SERVER_URL=http://localhost:5173
+    
     networks:
-      - 2fauth-dev
+      - 2fa-vault-dev
+    
+    command: >
+      sh -c "
+        echo '=== 2FA-Vault Development Environment ===' &&
+        echo 'Installing Composer dependencies...' &&
+        composer install &&
+        echo 'Installing NPM dependencies...' &&
+        npm install &&
+        echo 'Creating SQLite database...' &&
+        touch /srv/database/database.sqlite &&
+        echo 'Running migrations...' &&
+        php artisan migrate --force &&
+        echo 'Installing Passport...' &&
+        php artisan passport:install --force &&
+        echo 'Clearing cache...' &&
+        php artisan config:clear &&
+        php artisan cache:clear &&
+        php artisan view:clear &&
+        echo 'Starting PHP development server on 0.0.0.0:8000...' &&
+        php artisan serve --host=0.0.0.0 --port=8000
+      "
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
-volumes:
-  db_data:
+  # Vite dev server (for hot module replacement)
+  vite:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: 2fa-vault-dev-vite
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/srv:cached
+      - node_modules:/srv/node_modules
+    environment:
+      - NODE_ENV=development
+    networks:
+      - 2fa-vault-dev
+    command: npm run dev
+    depends_on:
+      - app
+
+  # MySQL (optional, for testing with MySQL)
+  mysql:
+    image: mysql:8.0
+    container_name: 2fa-vault-dev-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=2fa_vault_dev
+      - MYSQL_USER=2fa_vault
+      - MYSQL_PASSWORD=secret
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - 2fa-vault-dev
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (optional, for testing with Redis)
+  redis:
+    image: redis:7-alpine
+    container_name: 2fa-vault-dev-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - 2fa-vault-dev
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # phpMyAdmin (optional, for database management)
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: 2fa-vault-dev-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOST=mysql
+      - PMA_USER=root
+      - PMA_PASSWORD=root
+    networks:
+      - 2fa-vault-dev
+    depends_on:
+      - mysql
+
+  # MailHog (for testing emails)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: 2fa-vault-dev-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - 2fa-vault-dev
 
 networks:
-  2fauth-dev:
+  2fa-vault-dev:
     driver: bridge
+
+volumes:
+  vendor:
+    driver: local
+  node_modules:
+    driver: local
+  mysql-data:
+    driver: local
+  redis-data:
+    driver: local

@@ -1,0 +1,62 @@
+FROM php:8.4-cli-alpine
+
+ARG UID=1000
+ARG GID=1000
+
+# Install system dependencies
+RUN apk add --no-cache \
+    # Build tools
+    git \
+    curl \
+    unzip \
+    nodejs \
+    npm \
+    # PHP extensions dependencies
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    libzip-dev \
+    oniguruma-dev \
+    icu-dev \
+    postgresql-dev \
+    sqlite-dev \
+    # Tools
+    bash \
+    vim \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+        gd \
+        bcmath \
+        pdo \
+        pdo_mysql \
+        pdo_pgsql \
+        pdo_sqlite \
+        mbstring \
+        tokenizer \
+        xml \
+        ctype \
+        fileinfo \
+        zip \
+        intl
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Create user with same UID/GID as host (for file permissions)
+RUN addgroup -g ${GID} appuser && \
+    adduser -D -u ${UID} -G appuser appuser
+
+# Set working directory
+WORKDIR /srv
+
+# Change ownership
+RUN chown -R appuser:appuser /srv
+
+# Switch to non-root user
+USER appuser
+
+# Expose ports
+EXPOSE 8000 5173
+
+# Keep container running
+CMD ["sh"]
