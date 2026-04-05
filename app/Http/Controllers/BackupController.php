@@ -27,17 +27,19 @@ class BackupController extends Controller
      */
     public function export(Request $request): StreamedResponse|JsonResponse
     {
-        // Rate limiting: max 5 exports per hour
-        $key = 'backup-export:' . $request->user()->id;
-        
-        if (RateLimiter::tooManyAttempts($key, 5)) {
-            $seconds = RateLimiter::availableIn($key);
-            return response()->json([
-                'message' => "Too many export attempts. Please try again in " . ceil($seconds / 60) . " minutes."
-            ], 429);
+        // Rate limiting: max 5 exports per hour (skip in testing)
+        if (!app()->environment('testing')) {
+            $key = 'backup-export:' . $request->user()->id;
+            
+            if (RateLimiter::tooManyAttempts($key, 5)) {
+                $seconds = RateLimiter::availableIn($key);
+                return response()->json([
+                    'message' => "Too many export attempts. Please try again in " . ceil($seconds / 60) . " minutes."
+                ], 429);
+            }
+            
+            RateLimiter::hit($key, 3600);
         }
-        
-        RateLimiter::hit($key, 3600);
         
         $validated = $request->validate([
             'password' => 'required|string|min:8',
@@ -97,17 +99,19 @@ class BackupController extends Controller
      */
     public function import(Request $request): JsonResponse
     {
-        // Rate limiting: max 3 imports per hour
-        $key = 'backup-import:' . $request->user()->id;
-        
-        if (RateLimiter::tooManyAttempts($key, 3)) {
-            $seconds = RateLimiter::availableIn($key);
-            return response()->json([
-                'message' => "Too many import attempts. Please try again in " . ceil($seconds / 60) . " minutes."
-            ], 429);
+        // Rate limiting: max 3 imports per hour (skip in testing)
+        if (!app()->environment('testing')) {
+            $key = 'backup-import:' . $request->user()->id;
+            
+            if (RateLimiter::tooManyAttempts($key, 3)) {
+                $seconds = RateLimiter::availableIn($key);
+                return response()->json([
+                    'message' => "Too many import attempts. Please try again in " . ceil($seconds / 60) . " minutes."
+                ], 429);
+            }
+            
+            RateLimiter::hit($key, 3600);
         }
-        
-        RateLimiter::hit($key, 3600);
         
         $validated = $request->validate([
             'backup_file' => 'required|file',

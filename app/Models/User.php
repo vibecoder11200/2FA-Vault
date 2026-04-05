@@ -90,6 +90,7 @@ class User extends Authenticatable implements HasLocalePreference, WebAuthnAuthe
      */
     protected $fillable = [
         'name', 'email', 'password', 'oauth_id', 'oauth_provider', 'is_admin', 'is_active',
+        'encryption_salt', 'encryption_test_value', 'encryption_version', 'vault_locked', 'last_backup_at',
     ];
 
     /**

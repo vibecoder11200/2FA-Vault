@@ -1,0 +1,25 @@
+services:
+  app:
+    image: 2fauth/2fauth:latest
+    container_name: 2fauth-dev
+    ports:
+      - "8000:8000/tcp"
+    volumes:
+      - .:/srv
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      APP_KEY: "base64:5mXva9j/GNGOgeXSAkJdp8AhBPDSiNhYiy24tJZyzrw="
+      DB_CONNECTION: sqlite
+      DB_DATABASE: "/srv/database/database.sqlite"
+      LOG_LEVEL: debug
+    networks:
+      - 2fauth-dev
+
+volumes:
+  db_data:
+
+networks:
+  2fauth-dev:
+    driver: bridge

@@ -26,8 +26,9 @@ class PushSubscriptionController extends Controller
     {
         $validated = $request->validate([
             'endpoint' => 'required|url',
-            'public_key' => 'required|string',
-            'auth_token' => 'required|string'
+            'p256dh' => 'required|string',
+            'auth' => 'required|string',
+            'content_encoding' => 'nullable|string'
         ]);
 
         // Check if subscription already exists
@@ -38,16 +39,18 @@ class PushSubscriptionController extends Controller
         if ($subscription) {
             // Update existing subscription
             $subscription->update([
-                'public_key' => $validated['public_key'],
-                'auth_token' => $validated['auth_token'],
+                'p256dh' => $validated['p256dh'],
+                'auth' => $validated['auth'],
+                'content_encoding' => $validated['content_encoding'] ?? 'aesgcm',
             ]);
         } else {
             // Create new subscription
             $subscription = PushSubscription::create([
                 'user_id' => auth()->id(),
                 'endpoint' => $validated['endpoint'],
-                'public_key' => $validated['public_key'],
-                'auth_token' => $validated['auth_token'],
+                'p256dh' => $validated['p256dh'],
+                'auth' => $validated['auth'],
+                'content_encoding' => $validated['content_encoding'] ?? 'aesgcm',
             ]);
         }
 

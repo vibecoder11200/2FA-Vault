@@ -25,11 +25,10 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_user_can_store_subscription()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         $subscriptionData = [
             'endpoint' => 'https://fcm.googleapis.com/fcm/send/example-endpoint-id',
-            'public_key' => 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37gp_rvQ...',
-            'auth_token' => 'tBHItJI5svbpez7KI4CCXg==',
+            'p256dh' => 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37gp_rvQ...',
+            'auth' => 'tBHItJI5svbpez7KI4CCXg==',
         ];
 
         $response = $this->actingAs($this->user, 'api-guard')
@@ -46,8 +45,8 @@ class PushSubscriptionTest extends TestCase
         $this->assertDatabaseHas('push_subscriptions', [
             'user_id' => $this->user->id,
             'endpoint' => $subscriptionData['endpoint'],
-            'public_key' => $subscriptionData['public_key'],
-            'auth_token' => $subscriptionData['auth_token'],
+            'p256dh' => $subscriptionData['p256dh'],
+            'auth' => $subscriptionData['auth'],
         ]);
 
         // Verify user relationship
@@ -57,11 +56,10 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_store_subscription_requires_authentication()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         $subscriptionData = [
             'endpoint' => 'https://fcm.googleapis.com/fcm/send/example-endpoint-id',
-            'public_key' => 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37gp_rvQ...',
-            'auth_token' => 'tBHItJI5svbpez7KI4CCXg==',
+            'p256dh' => 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37gp_rvQ...',
+            'auth' => 'tBHItJI5svbpez7KI4CCXg==',
         ];
 
         $response = $this->postJson('/api/v1/push/subscribe', $subscriptionData);
@@ -72,11 +70,10 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_store_subscription_requires_endpoint()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         $response = $this->actingAs($this->user, 'api-guard')
             ->postJson('/api/v1/push/subscribe', [
-                'public_key' => 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37gp_rvQ...',
-                'auth_token' => 'tBHItJI5svbpez7KI4CCXg==',
+                'p256dh' => 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37gp_rvQ...',
+                'auth' => 'tBHItJI5svbpez7KI4CCXg==',
             ]);
 
         $response->assertStatus(422)
@@ -86,12 +83,11 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_store_subscription_endpoint_must_be_url()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         $response = $this->actingAs($this->user, 'api-guard')
             ->postJson('/api/v1/push/subscribe', [
                 'endpoint' => 'not-a-valid-url',
-                'public_key' => 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37gp_rvQ...',
-                'auth_token' => 'tBHItJI5svbpez7KI4CCXg==',
+                'p256dh' => 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37gp_rvQ...',
+                'auth' => 'tBHItJI5svbpez7KI4CCXg==',
             ]);
 
         $response->assertStatus(422)
@@ -101,39 +97,36 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_store_subscription_requires_public_key()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         $response = $this->actingAs($this->user, 'api-guard')
             ->postJson('/api/v1/push/subscribe', [
                 'endpoint' => 'https://fcm.googleapis.com/fcm/send/example-endpoint-id',
-                'auth_token' => 'tBHItJI5svbpez7KI4CCXg==',
+                'auth' => 'tBHItJI5svbpez7KI4CCXg==',
             ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['public_key']);
+            ->assertJsonValidationErrors(['p256dh']);
     }
 
     /** @test */
     public function test_store_subscription_requires_auth_token()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         $response = $this->actingAs($this->user, 'api-guard')
             ->postJson('/api/v1/push/subscribe', [
                 'endpoint' => 'https://fcm.googleapis.com/fcm/send/example-endpoint-id',
-                'public_key' => 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37gp_rvQ...',
+                'p256dh' => 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37gp_rvQ...',
             ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['auth_token']);
+            ->assertJsonValidationErrors(['auth']);
     }
 
     /** @test */
     public function test_duplicate_subscription_updates_existing()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         $subscriptionData = [
             'endpoint' => 'https://fcm.googleapis.com/fcm/send/example-endpoint-id',
-            'public_key' => 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37gp_rvQ...',
-            'auth_token' => 'tBHItJI5svbpez7KI4CCXg==',
+            'p256dh' => 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37gp_rvQ...',
+            'auth' => 'tBHItJI5svbpez7KI4CCXg==',
         ];
 
         // Store first subscription
@@ -143,8 +136,8 @@ class PushSubscriptionTest extends TestCase
         // Store same subscription again with updated keys
         $updatedData = [
             'endpoint' => $subscriptionData['endpoint'],
-            'public_key' => 'NewPublicKey123...',
-            'auth_token' => 'NewAuthToken123==',
+            'p256dh' => 'NewPublicKey123...',
+            'auth' => 'NewAuthToken123==',
         ];
 
         $response = $this->actingAs($this->user)
@@ -159,25 +152,24 @@ class PushSubscriptionTest extends TestCase
         $this->assertDatabaseHas('push_subscriptions', [
             'user_id' => $this->user->id,
             'endpoint' => $updatedData['endpoint'],
-            'public_key' => $updatedData['public_key'],
-            'auth_token' => $updatedData['auth_token'],
+            'p256dh' => $updatedData['p256dh'],
+            'auth' => $updatedData['auth'],
         ]);
     }
 
     /** @test */
     public function test_user_can_have_multiple_subscriptions()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         $subscription1 = [
             'endpoint' => 'https://fcm.googleapis.com/fcm/send/endpoint-1',
-            'public_key' => 'PublicKey1...',
-            'auth_token' => 'AuthToken1==',
+            'p256dh' => 'PublicKey1...',
+            'auth' => 'AuthToken1==',
         ];
 
         $subscription2 = [
             'endpoint' => 'https://fcm.googleapis.com/fcm/send/endpoint-2',
-            'public_key' => 'PublicKey2...',
-            'auth_token' => 'AuthToken2==',
+            'p256dh' => 'PublicKey2...',
+            'auth' => 'AuthToken2==',
         ];
 
         $this->actingAs($this->user)
@@ -193,7 +185,6 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_user_can_remove_subscription()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         // Create subscription first
         $subscription = PushSubscription::factory()->create([
             'user_id' => $this->user->id,
@@ -221,7 +212,6 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_remove_subscription_requires_authentication()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         $response = $this->deleteJson('/api/v1/push/unsubscribe', [
             'endpoint' => 'https://fcm.googleapis.com/fcm/send/example-endpoint-id',
         ]);
@@ -232,7 +222,6 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_remove_subscription_requires_endpoint()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         $response = $this->actingAs($this->user)
             ->deleteJson('/api/v1/push/unsubscribe', []);
 
@@ -243,7 +232,6 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_remove_nonexistent_subscription_returns_404()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         $response = $this->actingAs($this->user)
             ->deleteJson('/api/v1/push/unsubscribe', [
                 'endpoint' => 'https://fcm.googleapis.com/fcm/send/nonexistent-endpoint',
@@ -258,7 +246,6 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_user_cannot_remove_another_users_subscription()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         $otherUser = User::factory()->create();
         
         $otherSubscription = PushSubscription::factory()->create([
@@ -282,7 +269,6 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_user_can_list_their_subscriptions()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         PushSubscription::factory()->count(3)->create([
             'user_id' => $this->user->id,
         ]);
@@ -306,7 +292,6 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_list_subscriptions_only_shows_current_users()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         // Create subscriptions for current user
         PushSubscription::factory()->count(2)->create([
             'user_id' => $this->user->id,
@@ -328,7 +313,6 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_subscriptions_deleted_when_user_deleted()
     {
-        $this->markTestSkipped('TODO: fix after route/controller refactoring');
         PushSubscription::factory()->count(3)->create([
             'user_id' => $this->user->id,
         ]);
