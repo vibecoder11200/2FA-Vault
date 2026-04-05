@@ -47,8 +47,9 @@ class WebauthnRecoveryNotificationTest extends FeatureTestCase
     {
         $mail = $this->webauthnRecoveryNotification->toMail($this->user)->render();
 
+        $expectedUrl = config('app.url') . '/webauthn/recover?token=test_token&amp;email=' . urlencode($this->user->email);
         $this->assertStringContainsString(
-            'http://localhost/webauthn/recover?token=test_token&amp;email=' . urlencode($this->user->email),
+            $expectedUrl,
             $mail
         );
 

@@ -344,8 +344,17 @@ class TwoFAccount extends Model implements Sortable
      */
     public function setSecretAttribute($value)
     {
-        // Encrypt when needed
-        $this->attributes['secret'] = $this->encryptOrReturn(Helpers::PadToBase32Format($value));
+        // For encrypted secrets (E2EE), store as-is without Base32 formatting
+        // Encrypted secrets have format: {"ciphertext":"...","iv":"...","authTag":"..."}
+        $isEncryptedSecret = (str_starts_with($value ?? '', '{') && str_contains($value ?? '', 'ciphertext'));
+
+        if ($isEncryptedSecret) {
+            // Store encrypted payload as-is (server never decrypts)
+            $this->attributes['secret'] = $value;
+        } else {
+            // Encrypt when needed for plaintext secrets
+            $this->attributes['secret'] = $this->encryptOrReturn(Helpers::PadToBase32Format($value));
+        }
     }
 
     /**
