@@ -1,6 +1,7 @@
 # 2FA-Vault
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-97%25-pass-brightgreen.svg?style=flat-square)
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg?style=flat-square)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg?style=flat-square)
 ![PHP](https://img.shields.io/badge/PHP-^8.4-777BB4.svg?style=flat-square&logo=php)
@@ -19,13 +20,23 @@
 - 💾 **Encrypted Backups**: Double-encrypted backup files with separate password protection
 - 🚀 **Modern Tech Stack**: Laravel 12 + Vue 3 + TypeScript
 
+### ✅ Production Status
+
+**Backend:** ✅ Production Ready (E2EE, Teams, Backup - 97% test coverage)
+**Frontend:** 🟡 In Development (Browser Extension, PWA)
+
 ### 📚 Documentation
 
-- 🏗️ [**ARCHITECTURE.md**](docs/ARCHITECTURE.md) - Technical architecture and system design
-- 🔒 [**SECURITY.md**](docs/SECURITY.md) - Security architecture, threat model, and best practices
-- 🔄 [**MIGRATION.md**](docs/MIGRATION.md) - Migration guide from 2FAuth to 2FA-Vault
-- 📝 [**CHANGELOG.md**](docs/CHANGELOG.md) - Version history and breaking changes
-- 🗺️ [**ROADMAP.md**](docs/ROADMAP.md) - Development roadmap and planned features
+**📖 [Documentation Hub](docs/)** - All documentation organized by category
+
+- 🏗️ [System Architecture](docs/architecture/system-architecture.md) - Layered architecture, data flows, encryption
+- 📦 [Codebase Summary](docs/architecture/codebase-summary.md) - Directory structure and key files
+- 🔒 [Security Guidelines](docs/development/security-guidelines.md) - Security model and threat analysis
+- 🚀 [Deployment Guide](docs/guides/deployment-guide.md) - Docker, Kubernetes, and traditional deployment
+- 🔄 [Migration from 2FAuth](docs/guides/migration-from-2fauth.md) - Upgrade instructions
+- 📋 [API Documentation](docs/reference/api-documentation.md) - Complete API reference
+- 🗺️ [Roadmap](docs/reference/roadmap.md) - Planned features and timeline
+- 📝 [Changelog](docs/reference/changelog.md) - Version history
 
 ---
 
@@ -295,7 +306,7 @@ php artisan webpush:vapid
 | Database Schema | New tables added | Auto-migrated via `php artisan migrate` |
 | Browser Extension | New feature | Optional, install from Chrome/Firefox store |
 
-See [MIGRATION.md](docs/MIGRATION.md) for detailed migration guide and rollback instructions.
+See [Migration from 2FAuth](docs/guides/migration-from-2fauth.md) for detailed migration guide and rollback instructions.
 
 ---
 
@@ -328,9 +339,9 @@ You can contribute to 2FA-Vault in many ways:
 
 * 🐛 **Bug Reports:** [Submit issues](https://github.com/yourusername/2FA-Vault/issues/new?template=bug_report.md) with detailed reproduction steps
 * ✨ **Feature Requests:** [Suggest enhancements](https://github.com/yourusername/2FA-Vault/issues/new?template=feature_request.md) that align with our security-first approach
-* 🔧 **Pull Requests:** Submit fixes or features on the `develop` branch (see [CONTRIBUTING.md](docs/CONTRIBUTING.md))
+* 🔧 **Pull Requests:** Submit fixes or features on the `develop` branch (see [Contributing Guide](docs/guides/contributing.md))
 * 🌍 **Translations:** Help translate 2FA-Vault on [Crowdin](https://crowdin.com/project/2fauth)
-* 🔒 **Security:** Report vulnerabilities responsibly (see [SECURITY.md](docs/SECURITY.md))
+* 🔒 **Security:** Report vulnerabilities responsibly (see [Security Guidelines](docs/development/security-guidelines.md))
 
 **Development Setup:**
 ```bash

@@ -18,16 +18,18 @@ Code standards, conventions, security guidelines, and best practices.
 - [Security Guidelines](development/security-guidelines.md) — Threat model, best practices
 
 ## 📖 [Guides](guides/)
-Setup instructions, migration guides, and how-to documentation.
+Setup instructions, deployment, migration guides, and how-to documentation.
 
-**Best for:** Getting started, migrating data, contributing to the project
+**Best for:** Getting started, deploying, migrating data, contributing to the project
+- [Deployment Guide](guides/deployment-guide.md) — Docker, Kubernetes, and traditional deployment
 - [Migration from 2FAuth](guides/migration-from-2fauth.md) — Upgrade instructions
 - [Contributing Guide](guides/contributing.md) — Contribution workflow
 
 ## 📋 [Reference](reference/)
-Roadmap, changelog, and project planning documents.
+Roadmap, changelog, API documentation, and project planning documents.
 
-**Best for:** Project planning, tracking progress, understanding what changed
+**Best for:** Project planning, tracking progress, understanding what changed, API integration
+- [API Documentation](reference/api-documentation.md) — Complete API reference for all endpoints
 - [Roadmap](reference/roadmap.md) — Planned features and timeline
 - [Changelog](reference/changelog.md) — Version history
 - [Project Plan](reference/project-plan.md) — Milestones and phases
@@ -51,6 +53,11 @@ Roadmap, changelog, and project planning documents.
 1. Follow [Migration Guide](guides/migration-from-2fauth.md) step-by-step
 2. Reference [Security Guidelines](development/security-guidelines.md) for E2EE
 3. Check [Roadmap](reference/roadmap.md) for planned features
+
+### 🚀 I'm Deploying to Production
+1. Read [Deployment Guide](guides/deployment-guide.md) for Docker/Kubernetes/traditional setup
+2. Review [API Documentation](reference/api-documentation.md) for endpoint details
+3. Check [Security Guidelines](development/security-guidelines.md) before going live
 
 ### 🤝 I Want to Contribute
 1. Read [Contributing Guide](guides/contributing.md)
