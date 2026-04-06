@@ -39,12 +39,22 @@ function init() {
     subtree: true
   });
 
-  // Listen for messages from background
+  // Listen for messages from background with origin validation
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Validate message comes from our extension
+    if (!sender || !sender.url || !sender.url.startsWith(chrome.runtime.getURL(''))) {
+      console.warn('[2FA-Vault] Message from untrusted origin blocked');
+      sendResponse({ success: false, error: 'Unauthorized origin' });
+      return false;
+    }
+
     if (message.action === 'fill-otp') {
       fillOTP(message.otp);
       sendResponse({ success: true });
+      return true;
     }
+
+    return false;
   });
 }
 
@@ -154,41 +164,52 @@ function markOTPField(input) {
 function showOverlayButton() {
   overlayButton = document.createElement('div');
   overlayButton.id = 'twofa-vault-overlay';
-  overlayButton.innerHTML = `
-    <div style="
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 56px;
-      height: 56px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 50%;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      cursor: pointer;
-      z-index: 999999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.2s;
-    " title="Autofill OTP from 2FA-Vault">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
-        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
-      </svg>
-    </div>
+
+  // Create button using DOM methods (XSS prevention)
+  const buttonDiv = document.createElement('div');
+  buttonDiv.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    cursor: pointer;
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
   `;
-  
-  overlayButton.addEventListener('click', () => {
+  buttonDiv.title = 'Autofill OTP from 2FA-Vault';
+
+  // Create SVG icon safely
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '28');
+  svg.setAttribute('height', '28');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'white');
+
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z');
+  svg.appendChild(path);
+  buttonDiv.appendChild(svg);
+
+  buttonDiv.addEventListener('click', () => {
     requestAutofill();
   });
-  
-  overlayButton.addEventListener('mouseenter', (e) => {
-    e.target.closest('div').style.transform = 'scale(1.1)';
+
+  buttonDiv.addEventListener('mouseenter', () => {
+    buttonDiv.style.transform = 'scale(1.1)';
   });
-  
-  overlayButton.addEventListener('mouseleave', (e) => {
-    e.target.closest('div').style.transform = 'scale(1)';
+
+  buttonDiv.addEventListener('mouseleave', () => {
+    buttonDiv.style.transform = 'scale(1)';
   });
-  
+
+  overlayButton.appendChild(buttonDiv);
   document.body.appendChild(overlayButton);
 }
 
@@ -337,55 +358,87 @@ function showAccountPicker(accounts) {
     overflow-y: auto;
   `;
 
-  let html = '<h3 style="margin-top: 0;">Select Account</h3>';
-  html += '<div style="display: flex; flex-direction: column; gap: 8px;">';
-  
+  // Create heading using textContent (XSS prevention)
+  const heading = document.createElement('h3');
+  heading.textContent = 'Select Account';
+  heading.style.marginTop = '0';
+  dialog.appendChild(heading);
+
+  // Create accounts container
+  const accountsContainer = document.createElement('div');
+  accountsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+
+  // Create account buttons using DOM methods
   accounts.forEach(account => {
-    html += `
-      <button class="account-option" data-account-id="${account.id}" style="
-        padding: 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        background: white;
-        cursor: pointer;
-        text-align: left;
-        transition: background 0.2s;
-      ">
-        <div style="font-weight: bold;">${account.name}</div>
-        <div style="font-size: 12px; color: #666;">${account.issuer || ''}</div>
-        <div style="font-family: monospace; margin-top: 4px; color: #4CAF50;">${account.otp}</div>
-      </button>
+    const button = document.createElement('button');
+    button.className = 'account-option';
+    button.dataset.accountId = account.id;
+    button.style.cssText = `
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.2s;
     `;
+
+    // Create account name (safe text content)
+    const nameDiv = document.createElement('div');
+    nameDiv.style.fontWeight = 'bold';
+    nameDiv.textContent = account.name;
+    button.appendChild(nameDiv);
+
+    // Create issuer (safe text content)
+    const issuerDiv = document.createElement('div');
+    issuerDiv.style.fontSize = '12px';
+    issuerDiv.style.color = '#666';
+    issuerDiv.textContent = account.issuer || '';
+    button.appendChild(issuerDiv);
+
+    // Create OTP code (safe text content)
+    const otpDiv = document.createElement('div');
+    otpDiv.style.fontFamily = 'monospace';
+    otpDiv.style.marginTop = '4px';
+    otpDiv.style.color = '#4CAF50';
+    otpDiv.textContent = account.otp;
+    button.appendChild(otpDiv);
+
+    // Add click handler
+    button.addEventListener('click', () => {
+      const accountId = button.dataset.accountId;
+      const acc = accounts.find(a => a.id === accountId);
+      if (acc) {
+        fillOTP(acc.otp);
+        showNotification(`Filled OTP for ${acc.name}`, 'success');
+        dialog.remove();
+      }
+    });
+
+    // Add hover effects
+    button.addEventListener('mouseenter', () => {
+      button.style.background = '#f5f5f5';
+    });
+
+    button.addEventListener('mouseleave', () => {
+      button.style.background = 'white';
+    });
+
+    accountsContainer.appendChild(button);
   });
-  
-  html += '</div>';
-  html += '<button id="picker-cancel" style="margin-top: 12px; padding: 8px; width: 100%; border: none; background: #f0f0f0; border-radius: 4px; cursor: pointer;">Cancel</button>';
-  
-  dialog.innerHTML = html;
-  
-  // Add event listeners
-  dialog.querySelectorAll('.account-option').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const accountId = btn.dataset.accountId;
-      const account = accounts.find(a => a.id === accountId);
-      fillOTP(account.otp);
-      showNotification(`Filled OTP for ${account.name}`, 'success');
-      dialog.remove();
-    });
-    
-    btn.addEventListener('mouseenter', (e) => {
-      e.target.style.background = '#f5f5f5';
-    });
-    
-    btn.addEventListener('mouseleave', (e) => {
-      e.target.style.background = 'white';
-    });
-  });
-  
-  dialog.querySelector('#picker-cancel').addEventListener('click', () => {
+
+  dialog.appendChild(accountsContainer);
+
+  // Create cancel button
+  const cancelButton = document.createElement('button');
+  cancelButton.id = 'picker-cancel';
+  cancelButton.textContent = 'Cancel';
+  cancelButton.style.cssText = 'margin-top: 12px; padding: 8px; width: 100%; border: none; background: #f0f0f0; border-radius: 4px; cursor: pointer;';
+  cancelButton.addEventListener('click', () => {
     dialog.remove();
   });
-  
+  dialog.appendChild(cancelButton);
+
   document.body.appendChild(dialog);
 }
 

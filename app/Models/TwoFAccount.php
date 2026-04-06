@@ -236,6 +236,14 @@ class TwoFAccount extends Model implements Sortable
     }
 
     /**
+     * Get the group that the account belongs to
+     */
+    public function group()
+    {
+        return $this->belongsTo(\App\Models\Group::class);
+    }
+
+    /**
      * Get the relation between the icon resource and the model.
      *
      * @return HasOne<\App\Models\Icon, $this>

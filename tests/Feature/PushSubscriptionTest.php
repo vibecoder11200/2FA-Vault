@@ -130,7 +130,7 @@ class PushSubscriptionTest extends TestCase
         ];
 
         // Store first subscription
-        $this->actingAs($this->user)
+        $this->actingAs($this->user, 'api-guard')
             ->postJson('/api/v1/push/subscribe', $subscriptionData);
 
         // Store same subscription again with updated keys
@@ -140,7 +140,7 @@ class PushSubscriptionTest extends TestCase
             'auth' => 'NewAuthToken123==',
         ];
 
-        $response = $this->actingAs($this->user)
+        $response = $this->actingAs($this->user, 'api-guard')
             ->postJson('/api/v1/push/subscribe', $updatedData);
 
         $response->assertStatus(201);
@@ -172,10 +172,10 @@ class PushSubscriptionTest extends TestCase
             'auth' => 'AuthToken2==',
         ];
 
-        $this->actingAs($this->user)
+        $this->actingAs($this->user, 'api-guard')
             ->postJson('/api/v1/push/subscribe', $subscription1);
 
-        $this->actingAs($this->user)
+        $this->actingAs($this->user, 'api-guard')
             ->postJson('/api/v1/push/subscribe', $subscription2);
 
         // Verify both subscriptions exist
@@ -191,7 +191,7 @@ class PushSubscriptionTest extends TestCase
             'endpoint' => 'https://fcm.googleapis.com/fcm/send/example-endpoint-id',
         ]);
 
-        $response = $this->actingAs($this->user)
+        $response = $this->actingAs($this->user, 'api-guard')
             ->deleteJson('/api/v1/push/unsubscribe', [
                 'endpoint' => $subscription->endpoint,
             ]);
@@ -222,7 +222,7 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_remove_subscription_requires_endpoint()
     {
-        $response = $this->actingAs($this->user)
+        $response = $this->actingAs($this->user, 'api-guard')
             ->deleteJson('/api/v1/push/unsubscribe', []);
 
         $response->assertStatus(422)
@@ -232,7 +232,7 @@ class PushSubscriptionTest extends TestCase
     /** @test */
     public function test_remove_nonexistent_subscription_returns_404()
     {
-        $response = $this->actingAs($this->user)
+        $response = $this->actingAs($this->user, 'api-guard')
             ->deleteJson('/api/v1/push/unsubscribe', [
                 'endpoint' => 'https://fcm.googleapis.com/fcm/send/nonexistent-endpoint',
             ]);
@@ -253,7 +253,7 @@ class PushSubscriptionTest extends TestCase
             'endpoint' => 'https://fcm.googleapis.com/fcm/send/other-user-endpoint',
         ]);
 
-        $response = $this->actingAs($this->user)
+        $response = $this->actingAs($this->user, 'api-guard')
             ->deleteJson('/api/v1/push/unsubscribe', [
                 'endpoint' => $otherSubscription->endpoint,
             ]);
@@ -273,7 +273,7 @@ class PushSubscriptionTest extends TestCase
             'user_id' => $this->user->id,
         ]);
 
-        $response = $this->actingAs($this->user)
+        $response = $this->actingAs($this->user, 'api-guard')
             ->getJson('/api/v1/push/subscriptions');
 
         $response->assertStatus(200)
@@ -303,7 +303,7 @@ class PushSubscriptionTest extends TestCase
             'user_id' => $otherUser->id,
         ]);
 
-        $response = $this->actingAs($this->user)
+        $response = $this->actingAs($this->user, 'api-guard')
             ->getJson('/api/v1/push/subscriptions');
 
         $response->assertStatus(200)

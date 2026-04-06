@@ -15,8 +15,8 @@ class PushSubscriptionFactory extends Factory
         return [
             'user_id' => User::factory(),
             'endpoint' => 'https://fcm.googleapis.com/fcm/send/' . $this->faker->uuid(),
-            'public_key' => base64_encode(random_bytes(32)),
-            'auth_token' => base64_encode(random_bytes(16)),
+            'p256dh' => base64_encode(random_bytes(32)),
+            'auth' => base64_encode(random_bytes(16)),
             'content_encoding' => 'aes128gcm',
         ];
     }

@@ -87,6 +87,12 @@ class TwoFAccountController extends Controller
         } else {
             $twofaccount->fillWithOtpParameters($validated);
         }
+
+        // Detect E2EE encrypted secrets and set the encrypted flag
+        if (str_starts_with($twofaccount->secret ?? '', '{') && str_contains($twofaccount->secret ?? '', 'ciphertext')) {
+            $twofaccount->encrypted = true;
+        }
+
         $request->user()->twofaccounts()->save($twofaccount);
 
         // Possible group association

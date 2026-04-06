@@ -108,7 +108,8 @@ class TeamControllerTest extends TestCase
             'email' => $invitee->email,
             'role' => 'member',
             'token' => \Str::random(32),
-            'status' => 'pending'
+            'status' => 'pending',
+            'expires_at' => now()->addDays(7),
         ]);
 
         $response = $this->actingAs($invitee, 'api-guard')->postJson("/api/v1/teams/invitations/{$invitation->token}/accept");

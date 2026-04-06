@@ -19,7 +19,7 @@ class UserModelTest extends ModelTestCase
     public function test_model_configuration()
     {
         $this->runConfigurationAssertions(new User,
-            ['name', 'email', 'password', 'oauth_id', 'oauth_provider', 'is_admin', 'is_active'],
+            ['name', 'email', 'password', 'oauth_id', 'oauth_provider', 'is_admin', 'is_active', 'encryption_salt', 'encryption_test_value', 'encryption_version', 'vault_locked', 'last_backup_at'],
             ['password', 'remember_token', 'encryption_salt', 'encryption_test_value'],
             ['*'],
             [],

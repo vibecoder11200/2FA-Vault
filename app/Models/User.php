@@ -279,6 +279,16 @@ class User extends Authenticatable implements HasLocalePreference, WebAuthnAuthe
     }
 
     /**
+     * Get the push subscriptions for the user.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\PushSubscription, $this>
+     */
+    public function pushSubscriptions()
+    {
+        return $this->hasMany(\App\Models\PushSubscription::class);
+    }
+
+    /**
      * Compare 2 Users
      */
     public function equals(self $other) : bool

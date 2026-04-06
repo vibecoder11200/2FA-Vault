@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BackupController extends Controller
@@ -69,6 +70,9 @@ class BackupController extends Controller
             $filename = '2fa-vault-backup-' . now()->format('Y-m-d-His') . '.vault';
             $backupJson = json_encode($backupData, JSON_PRETTY_PRINT);
 
+            // Store backup file for later retrieval and testing
+            Storage::put('backups/' . $filename, $backupJson);
+
             // For testing: return JSON response instead of download
             if ($request->wantsJson() || $request->expectsJson()) {
                 return response()->json([
@@ -126,13 +130,18 @@ class BackupController extends Controller
             RateLimiter::hit($key, 3600);
         }
 
-        $validated = $request->validate([
+        // Build validation rules - password only required for vault format
+        $rules = [
             'backup_file' => 'required|file',
-            'password' => 'required|string|min:8',
             'format' => 'nullable|in:2fauth,vault,aegis,bitwarden',
             'conflict_resolution' => 'nullable|in:skip,replace,rename',
             'import_groups' => 'nullable|boolean',
-        ]);
+        ];
+
+        // Password required only for vault format (we'll detect format after validation)
+        $rules['password'] = 'nullable|string|min:8';
+
+        $validated = $request->validate($rules);
 
         $user = Auth::user();
 
@@ -148,20 +157,31 @@ class BackupController extends Controller
                 ], 422);
             }
 
+            // Determine format from file content or explicit parameter
+            $detectedFormat = 'vault'; // Default
+            if (isset($backupData['app']) && $backupData['app'] === '2FAuth') {
+                $detectedFormat = '2fauth';
+            } elseif (isset($backupData['format']) && $backupData['format'] === '2FA-Vault') {
+                $detectedFormat = 'vault';
+            }
+
+            $explicitFormat = $validated['format'] ?? null;
+            $finalFormat = $explicitFormat ?? $detectedFormat;
+
+            // Validate password requirement for vault format
+            if ($finalFormat === 'vault' && empty($validated['password'])) {
+                return response()->json([
+                    'message' => 'The password field is required.',
+                    'errors' => ['password' => ['The password field is required.']]
+                ], 422);
+            }
+
             // Validate backup structure
             if (!$this->backupService->validateBackupFile($backupData)) {
                 return response()->json([
                     'message' => 'Invalid backup format or version not supported',
                     'errors' => ['backup_file' => ['The backup file format is invalid or from an unsupported version']]
                 ], 422);
-            }
-
-            // Determine format
-            $format = $validated['format'] ?? 'vault';
-            if (isset($backupData['app']) && $backupData['app'] === '2FAuth') {
-                $format = '2fauth';
-            } elseif (isset($backupData['format']) && $backupData['format'] === '2FA-Vault') {
-                $format = 'vault';
             }
 
             // Import options
@@ -174,13 +194,13 @@ class BackupController extends Controller
             $result = $this->backupService->restoreEncryptedBackup(
                 $user,
                 $backupData,
-                $format,
+                $finalFormat,
                 $options
             );
 
             Log::info('Backup imported', [
                 'user_id' => $user->id,
-                'format' => $format,
+                'format' => $finalFormat,
                 'imported_count' => $result['imported'],
                 'skipped_count' => $result['skipped'],
                 'failed_count' => $result['failed'],

@@ -64,7 +64,7 @@ class OfflineTotpService {
 
     // Get account from offline cache
     const account = await offlineDb.getAccount(accountId);
-    
+
     if (!account) {
       throw new Error('Account not found in offline cache');
     }
@@ -72,9 +72,15 @@ class OfflineTotpService {
     // Decrypt the secret using master password
     const secret = await this.decryptAccountSecret(account);
 
-    // Generate TOTP code
-    const code = this.computeTotp(secret, timestamp);
-    const timeRemaining = this.getTimeRemaining();
+    // Generate TOTP code (now async)
+    const code = await this.computeTotp(
+      secret,
+      timestamp,
+      account.algorithm || 'SHA1',
+      account.digits || 6,
+      account.period || 30
+    );
+    const timeRemaining = this.getTimeRemaining(account.period || 30);
 
     return {
       code,
@@ -130,12 +136,13 @@ class OfflineTotpService {
     }
 
     try {
-      // Use crypto.js decryptSecret function with master password
-      const secret = await decryptSecret(
-        account.encryptedSecret,
-        this.masterPassword,
-        account.salt
-      );
+      // Derive key from master password and salt
+      const { deriveKey, decryptSecret } = await import('./crypto.js');
+
+      const key = await deriveKey(this.masterPassword, account.salt);
+
+      // Use crypto.js decryptSecret function
+      const secret = await decryptSecret(account.encryptedSecret, key);
 
       return secret;
     } catch (error) {
@@ -145,20 +152,40 @@ class OfflineTotpService {
   }
 
   /**
-   * Compute TOTP code from secret
+   * Compute TOTP code from secret using Web Crypto API
    * @param {string} secret - Base32 encoded secret
    * @param {number} timestamp - Unix timestamp (optional)
+   * @param {string} algorithm - Hash algorithm (SHA1, SHA256, SHA512)
+   * @param {number} digits - Number of digits (6 or 8)
+   * @param {number} period - Time period in seconds (default 30)
    */
-  computeTotp(secret, timestamp = null) {
+  async computeTotp(secret, timestamp = null, algorithm = 'SHA1', digits = 6, period = 30) {
     const time = timestamp || Math.floor(Date.now() / 1000);
-    const period = 30; // Standard TOTP period
     const counter = Math.floor(time / period);
 
     // Decode base32 secret
     const key = this.base32Decode(secret);
 
-    // Compute HMAC-SHA1
-    const hmac = this.hmacSha1(key, this.intToBytes(counter));
+    // Convert counter to 8-byte big-endian array
+    const counterBytes = this.intToBytes(counter);
+
+    // Import key for HMAC
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      key,
+      { name: 'HMAC', hash: algorithm },
+      false,
+      ['sign']
+    );
+
+    // Compute HMAC using Web Crypto API
+    const signature = await crypto.subtle.sign(
+      { name: 'HMAC', hash: algorithm },
+      cryptoKey,
+      counterBytes
+    );
+
+    const hmac = new Uint8Array(signature);
 
     // Dynamic truncation
     const offset = hmac[hmac.length - 1] & 0x0f;
@@ -169,8 +196,9 @@ class OfflineTotpService {
       (hmac[offset + 3] & 0xff)
     );
 
-    // Generate 6-digit code
-    const otp = (code % 1000000).toString().padStart(6, '0');
+    // Generate code with specified digits
+    const modulo = Math.pow(10, digits);
+    const otp = (code % modulo).toString().padStart(digits, '0');
 
     return otp;
   }
@@ -189,7 +217,7 @@ class OfflineTotpService {
   base32Decode(encoded) {
     const base32Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
     encoded = encoded.toUpperCase().replace(/=+$/, '');
-    
+
     let bits = 0;
     let value = 0;
     const output = [];
@@ -220,66 +248,6 @@ class OfflineTotpService {
       num = num >> 8;
     }
     return bytes;
-  }
-
-  /**
-   * HMAC-SHA1 computation
-   */
-  hmacSha1(key, message) {
-    // This is a simplified implementation
-    // In production, use Web Crypto API or a library like crypto-js
-    
-    const blockSize = 64;
-    
-    // Pad or hash key if needed
-    if (key.length > blockSize) {
-      key = this.sha1(key);
-    }
-    if (key.length < blockSize) {
-      const paddedKey = new Uint8Array(blockSize);
-      paddedKey.set(key);
-      key = paddedKey;
-    }
-
-    // Create inner and outer padded keys
-    const innerKey = new Uint8Array(blockSize);
-    const outerKey = new Uint8Array(blockSize);
-    
-    for (let i = 0; i < blockSize; i++) {
-      innerKey[i] = key[i] ^ 0x36;
-      outerKey[i] = key[i] ^ 0x5c;
-    }
-
-    // HMAC = H(outerKey || H(innerKey || message))
-    const innerHash = this.sha1(this.concat(innerKey, message));
-    const hmac = this.sha1(this.concat(outerKey, innerHash));
-
-    return hmac;
-  }
-
-  /**
-   * SHA-1 hash (simplified - use crypto library in production)
-   */
-  sha1(data) {
-    // For production, use Web Crypto API:
-    // const buffer = await crypto.subtle.digest('SHA-1', data);
-    // return new Uint8Array(buffer);
-    
-    // This is a placeholder - implement proper SHA-1 or use crypto-js
-    console.warn('[OfflineTotp] Using simplified SHA-1 - replace with Web Crypto API in production');
-    
-    // Fallback: return dummy hash for now
-    return new Uint8Array(20); // SHA-1 produces 20 bytes
-  }
-
-  /**
-   * Concatenate two Uint8Arrays
-   */
-  concat(a, b) {
-    const result = new Uint8Array(a.length + b.length);
-    result.set(a);
-    result.set(b, a.length);
-    return result;
   }
 
   /**
