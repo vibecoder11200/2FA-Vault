@@ -35,8 +35,8 @@ class EncryptionController extends Controller
      */
     public function setup(Request $request): JsonResponse
     {
-        // Rate limiting: max 3 attempts per minute (skip in testing)
-        if (!app()->environment('testing')) {
+        // Rate limiting: max 3 attempts per minute (skip in console-driven automated tests)
+        if (!app()->runningInConsole()) {
             $key = 'encryption-setup:' . $request->ip();
 
             if (RateLimiter::tooManyAttempts($key, 3)) {
@@ -146,8 +146,8 @@ class EncryptionController extends Controller
      */
     public function verify(Request $request): JsonResponse
     {
-        // Rate limiting: max 5 attempts per minute (skip in testing)
-        if (!app()->environment('testing')) {
+        // Rate limiting: max 5 attempts per minute (skip in console-driven automated tests)
+        if (!app()->runningInConsole()) {
             $key = 'encryption-verify:' . $request->ip();
 
             if (RateLimiter::tooManyAttempts($key, 5)) {
@@ -237,8 +237,8 @@ class EncryptionController extends Controller
      */
     public function disable(Request $request): JsonResponse
     {
-        // Rate limiting: max 2 attempts per hour (skip in testing)
-        if (!app()->environment('testing')) {
+        // Rate limiting: max 2 attempts per hour (skip in console-driven automated tests)
+        if (!app()->runningInConsole()) {
             $key = 'encryption-disable:' . $request->ip();
 
             if (RateLimiter::tooManyAttempts($key, 2)) {

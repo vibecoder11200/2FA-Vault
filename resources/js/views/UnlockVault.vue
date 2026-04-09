@@ -125,15 +125,6 @@
                         </label>
                     </div>
 
-                    <div class="notification is-warning mt-5">
-                        <p class="has-text-weight-semibold">{{ $t('message.vault_locked') }}</p>
-                    </div>
-
-                    <div class="notification is-warning mt-5">
-                        <p class="has-text-weight-semibold">{{ $t('confirmation.disable_encryption') }}</p>
-                        <p class="mt-2">{{ $t('message.e2ee_warning_setup') }}</p>
-                    </div>
-
                     <FormButtons
                         :isBusy="unlockForm.isBusy"
                         submitLabel="label.unlock_vault"

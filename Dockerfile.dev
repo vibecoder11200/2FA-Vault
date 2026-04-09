@@ -22,6 +22,57 @@ RUN apk add --no-cache \
     sqlite-dev \
     libxml2-dev \
     libxslt-dev \
+    # Playwright / Chromium runtime dependencies
+    nss \
+    nspr \
+    dbus-libs \
+    cups-libs \
+    libatk-1.0 \
+    libatk-bridge-2.0 \
+    at-spi2-core \
+    glib \
+    libdrm \
+    mesa \
+    libxkbcommon \
+    pango \
+    cairo \
+    alsa-lib \
+    libgcc \
+    libstdc++ \
+    expat \
+    fontconfig \
+    ttf-freefont \
+    ca-certificates \
+    libc6-compat \
+    udev \
+    xvfb-run \
+    xdg-utils \
+    xauth \
+    tzdata \
+    freetype \
+    harfbuzz \
+    jpeg \
+    zlib \
+    libcap \
+    libxcomposite \
+    libxdamage \
+    libxfixes \
+    libxrandr \
+    libxrender \
+    libxext \
+    libxi \
+    libxcursor \
+    libx11 \
+    libxcb \
+    libxau \
+    libxdmcp \
+    libxshmfence \
+    libxxf86vm \
+    eudev-libs \
+    mesa-egl \
+    mesa-gl \
+    mesa-gles \
+    mesa-vulkan-swrast \
     # Additional build dependencies
     autoconf \
     g++ \

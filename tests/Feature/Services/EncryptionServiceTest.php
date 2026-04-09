@@ -66,7 +66,8 @@ class EncryptionServiceTest extends TestCase
         $this->assertEquals(1, $this->user->encryption_version);
         $this->assertEquals($salt, $this->user->encryption_salt);
         $this->assertEquals($testValue, $this->user->encryption_test_value);
-        $this->assertFalse($this->user->vault_locked);
+        $this->assertTrue($this->user->vault_locked);
+        $this->assertTrue($this->user->encryption_enabled);
     }
 
     /**
@@ -100,6 +101,7 @@ class EncryptionServiceTest extends TestCase
      */
     public function test_get_encryption_info_returns_correct_data(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'test_salt';
         $this->user->encryption_test_value = '{"test":"value"}';
         $this->user->encryption_version = 1;
@@ -131,6 +133,7 @@ class EncryptionServiceTest extends TestCase
      */
     public function test_can_lock_vault(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'test_salt';
         $this->user->encryption_test_value = '{"test":"value"}';
         $this->user->encryption_version = 1;
@@ -177,6 +180,7 @@ class EncryptionServiceTest extends TestCase
      */
     public function test_can_disable_encryption(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'salt';
         $this->user->encryption_test_value = 'test';
         $this->user->encryption_version = 1;
@@ -199,6 +203,7 @@ class EncryptionServiceTest extends TestCase
      */
     public function test_get_encryption_status(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'test_salt';
         $this->user->encryption_test_value = '{"test":"value"}';
         $this->user->encryption_version = 1;
@@ -220,6 +225,7 @@ class EncryptionServiceTest extends TestCase
      */
     public function test_can_update_encryption_credentials(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'old_salt';
         $this->user->encryption_test_value = 'old_test';
         $this->user->encryption_version = 1;

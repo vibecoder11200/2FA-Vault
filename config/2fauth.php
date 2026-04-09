@@ -19,6 +19,8 @@ $preferences = [
     'iconVariant'            => envUnlessEmpty('USERPREF_DEFAULT__ICON_VARIANT', 'regular'),
     'iconVariantStrictFetch' => envUnlessEmpty('USERPREF_DEFAULT__ICON_VARIANT_STRICT_FETCH', false),
     'kickUserAfter'          => envUnlessEmpty('USERPREF_DEFAULT__KICK_USER_AFTER', 15),
+    'vaultAutoLockMode'      => envUnlessEmpty('USERPREF_DEFAULT__VAULT_AUTO_LOCK_MODE', 'inactivity'),
+    'vaultAutoLockMinutes'   => envUnlessEmpty('USERPREF_DEFAULT__VAULT_AUTO_LOCK_MINUTES', 5),
     'activeGroup'            => 0,
     'rememberActiveGroup'    => envUnlessEmpty('USERPREF_DEFAULT__REMEMBER_ACTIVE_GROUP', true),
     'viewDefaultGroupOnCopy' => envUnlessEmpty('USERPREF_DEFAULT__VIEW_DEFAULT_GROUP_ON_COPY', false),
@@ -157,6 +159,7 @@ return [
     'settings' => [
         'useEncryption' => false,
         'encryptionEnabledByDefault' => env('ENCRYPTION_ENABLED_BY_DEFAULT', true),
+        'enforceMandatoryEncryption' => env('ENFORCE_MANDATORY_ENCRYPTION', false),
         'checkForUpdate' => true,
         'lastRadarScan' => 0,
         'latestRelease' => false,

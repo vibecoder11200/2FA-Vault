@@ -31,6 +31,7 @@ class AuthWithEncryptionE2ETest extends TestCase
         $this->user = User::factory()->create([
             'email' => 'test@example.com',
             'password' => bcrypt('password123'),
+            'encryption_enabled' => false,
             'encryption_salt' => null,
             'encryption_test_value' => null,
             'encryption_version' => 0,
@@ -75,12 +76,20 @@ class AuthWithEncryptionE2ETest extends TestCase
                 'encryption_enabled' => true
             ]);
 
-        // 4. Verify encryption is now enabled
+        // 4. Verify encryption is now enabled and server marks it locked until verified
         $this->user->refresh();
         $this->assertEquals(1, $this->user->encryption_version);
-        $this->assertFalse($this->user->vault_locked);
+        $this->assertTrue($this->user->vault_locked);
+        $this->assertTrue($this->user->encryption_enabled);
 
-        // 5. Check encryption info
+        // 5. Unlock current session via verification
+        $this->withToken($token)
+            ->postJson('/api/v1/encryption/verify', [
+                'verification_result' => true
+            ])
+            ->assertOk();
+
+        // 6. Check encryption info
         $response = $this->withToken($token)
             ->getJson('/api/v1/encryption/info');
 
@@ -114,23 +123,13 @@ class AuthWithEncryptionE2ETest extends TestCase
                 'encryption_version' => 1
             ]);
 
-        // Initial state: unlocked
+        // Initial state after setup: locked
         $response = $this->withToken($token)
             ->getJson('/api/v1/encryption/info');
 
-        $this->assertFalse($response->json('vault_locked'));
+        $this->assertTrue($response->json('vault_locked'));
 
-        // Lock the vault
-        $response = $this->withToken($token)
-            ->postJson('/api/v1/encryption/lock');
-
-        $response->assertOk()
-            ->assertJson(['vault_locked' => true]);
-
-        // Verify vault is locked
-        $this->user->refresh();
-        $this->assertTrue($this->user->vault_locked);
-
+        // Unlock the vault
         // Unlock via verification (client-side password check succeeded)
         $response = $this->withToken($token)
             ->postJson('/api/v1/encryption/verify', [
@@ -146,6 +145,16 @@ class AuthWithEncryptionE2ETest extends TestCase
         // Verify vault is unlocked
         $this->user->refresh();
         $this->assertFalse($this->user->vault_locked);
+
+        // Lock the vault again
+        $response = $this->withToken($token)
+            ->postJson('/api/v1/encryption/lock');
+
+        $response->assertOk()
+            ->assertJson(['vault_locked' => true]);
+
+        $this->user->refresh();
+        $this->assertTrue($this->user->vault_locked);
     }
 
     /**
@@ -154,6 +163,7 @@ class AuthWithEncryptionE2ETest extends TestCase
     public function test_failed_verification_keeps_vault_locked(): void
     {
         // Setup encryption with vault locked
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'test_salt';
         $this->user->encryption_test_value = '{"test":"value"}';
         $this->user->encryption_version = 1;
@@ -210,6 +220,7 @@ class AuthWithEncryptionE2ETest extends TestCase
 
         // Setup encryption
         $salt = base64_encode(random_bytes(32));
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = $salt;
         $this->user->encryption_test_value = '{"test":"value"}';
         $this->user->encryption_version = 1;
@@ -337,6 +348,11 @@ class AuthWithEncryptionE2ETest extends TestCase
                 'encryption_salt' => 'test_salt',
                 'encryption_test_value' => '{"test":"value"}',
                 'encryption_version' => 1
+            ]);
+
+        $this->withToken($token)
+            ->postJson('/api/v1/encryption/verify', [
+                'verification_result' => true
             ]);
 
         // Check status before backup

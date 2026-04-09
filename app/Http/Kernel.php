@@ -73,6 +73,7 @@ class Kernel extends HttpKernel
     protected $middlewareAliases = [
         'auth'                          => \App\Http\Middleware\Authenticate::class,
         'admin'                         => \App\Http\Middleware\AdminOnly::class,
+        'enforceMandatoryEncryption'    => \App\Http\Middleware\EnforceMandatoryEncryption::class,
         'rejectIfAuthenticated'         => \App\Http\Middleware\RejectIfAuthenticated::class,
         'throttle'                      => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'rejectIfDemoMode'              => \App\Http\Middleware\RejectIfDemoMode::class,

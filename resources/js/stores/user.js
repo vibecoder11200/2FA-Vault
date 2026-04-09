@@ -22,6 +22,7 @@ export const useUserStore = defineStore('user', {
             isAdmin: false,
             encryption_version: 0,
             vault_locked: false,
+            e2ee_required: false,
             last_backup_at: null,
         }
     },
@@ -61,6 +62,7 @@ export const useUserStore = defineStore('user', {
                 isAdmin: payload.is_admin,
                 encryption_version: payload.encryption_version,
                 vault_locked: payload.vault_locked,
+                e2ee_required: payload.e2ee_required ?? false,
                 last_backup_at: payload.last_backup_at,
             }
         },

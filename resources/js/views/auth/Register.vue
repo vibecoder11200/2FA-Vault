@@ -38,6 +38,7 @@
                 email: response.data.email,
                 preferences: response.data.preferences,
                 isAdmin: response.data.is_admin ?? false,
+                e2ee_required: response.data.e2ee_required ?? false,
                 // TODO : Having the created 'id' in the response could be interesting
             })
             user.applyTheme()
@@ -72,7 +73,7 @@
         renameDeviceForm.patch('/webauthn/credentials/' + deviceId.value + '/name')
         .then(() => {
             notify.success({ text: t('notification.device_successfully_registered') })
-            router.push({ name: 'accounts' })
+            router.push({ name: user.e2ee_required ? 'setup-encryption' : 'accounts' })
         })
     }
 
@@ -105,7 +106,7 @@
                     </div>
                     <!-- dismiss button -->
                     <div class="control">
-                        <RouterLink id="btnMaybeLater" :to="{ name: 'accounts' }" class="button is-text">{{ $t('link.maybe_later') }}</RouterLink>
+                        <RouterLink id="btnMaybeLater" :to="{ name: user.e2ee_required ? 'setup-encryption' : 'accounts' }" class="button is-text">{{ $t('link.maybe_later') }}</RouterLink>
                     </div>
                 </div>
             </FormWrapper>

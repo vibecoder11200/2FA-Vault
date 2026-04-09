@@ -33,6 +33,7 @@
     // Computed states
     const isEnabled = computed(() => encryptionStatus.value?.encryption_enabled === true)
     const isLocked = computed(() => encryptionStatus.value?.vault_locked === true)
+    const isMandatorySetup = computed(() => encryptionStatus.value?.e2ee_required === true)
 
     /**
      * Fetch encryption status from server
@@ -200,6 +201,9 @@
                                 {{ $t('label.enable_encryption') }}
                             </button>
                         </div>
+                        <p v-if="isMandatorySetup" class="mt-3 is-size-7 has-text-warning-light">
+                            {{ $t('message.vault_locked_desc') }}
+                        </p>
                     </template>
 
                     <!-- Enabled: show vault controls -->

@@ -14,6 +14,26 @@
     const notify = useNotify()
     const router = useRouter()
     const apiClient = httpClientFactory('api')
+    const isMandatorySetup = computed(() => userStore.e2ee_required === true)
+
+    onMounted(async () => {
+        try {
+            const statusResponse = await apiClient.get('/encryption/status')
+            userStore.e2ee_required = statusResponse.data.e2ee_required === true
+        } catch (error) {
+            console.debug('Failed to fetch encryption status during setup mount', error)
+        }
+    })
+
+    const isMandatorySetupLabel = computed(() => isMandatorySetup.value)
+
+    function handleMaybeLater() {
+        if (isMandatorySetup.value) {
+            return
+        }
+
+        router.push({ name: 'accounts' })
+    }
 
     const setupForm = reactive(new Form({
         masterPassword: '',
@@ -72,13 +92,6 @@
         }
     }
 
-    /**
-     * Skip encryption setup
-     */
-    function handleSkip() {
-        router.push({ name: 'accounts' })
-    }
-
     onBeforeRouteLeave(() => {
         notify.clear()
     })
@@ -104,8 +117,8 @@
                     <FormCheckbox v-model="setupForm.understood" fieldName="understood" label="field.understand_data_loss" />
                     <FormButtons :isBusy="setupForm.isBusy" :isDisabled="!setupForm.understood" submitLabel="label.enable_encryption" submitId="btnEnableEncryption" />
                 </form>
-                <div class="nav-links">
-                    <p><a class="is-link" @click="handleSkip">{{ $t('link.maybe_later') }}</a></p>
+                <div v-if="!isMandatorySetupLabel" class="nav-links">
+                    <p><a class="is-link" @click="handleMaybeLater">{{ $t('link.maybe_later') }}</a></p>
                 </div>
             </FormWrapper>
         </template>

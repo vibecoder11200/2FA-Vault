@@ -49,11 +49,12 @@ class RegisterController extends Controller
         $user = $this->guard()->user();
 
         return response()->json([
-            'message'     => 'account created',
-            'name'        => $user->name,
-            'email'       => $user->email,
-            'preferences' => $user->preferences,
-            'is_admin'    => $user->isAdministrator(),
+            'message'        => 'account created',
+            'name'           => $user->name,
+            'email'          => $user->email,
+            'preferences'    => $user->preferences,
+            'is_admin'       => $user->isAdministrator(),
+            'e2ee_required'  => app(\App\Services\EncryptionService::class)->isEncryptionRequired($user),
         ], 201);
     }
 

@@ -149,6 +149,7 @@ class EncryptionService
     public function getEncryptionStatus(User $user): array
     {
         $encryptionEnabled = $this->isEncryptionEnabled($user);
+        $e2eeRequired = $this->isEncryptionRequired($user);
 
         return [
             'encryption_enabled' => $encryptionEnabled,
@@ -156,8 +157,15 @@ class EncryptionService
             'vault_locked' => $encryptionEnabled ? $user->vault_locked : false,
             'has_backup' => !is_null($user->last_backup_at),
             'last_backup_at' => $user->last_backup_at?->toIso8601String(),
-            'should_prompt_setup' => !$encryptionEnabled && config('2fauth.settings.encryptionEnabledByDefault', true),
+            'e2ee_required' => $e2eeRequired,
+            'should_prompt_setup' => !$encryptionEnabled && $e2eeRequired,
         ];
+    }
+
+    public function isEncryptionRequired(User $user): bool
+    {
+        return config('2fauth.settings.enforceMandatoryEncryption', false)
+            && !$this->isEncryptionEnabled($user);
     }
 
     /**

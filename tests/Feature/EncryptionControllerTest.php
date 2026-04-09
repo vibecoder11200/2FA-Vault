@@ -46,7 +46,8 @@ class EncryptionControllerTest extends TestCase
         $this->assertEquals('test_salt_base64_encoded', $this->user->encryption_salt);
         $this->assertEquals('{"ciphertext":"test","iv":"test","authTag":"test"}', $this->user->encryption_test_value);
         $this->assertEquals(1, $this->user->encryption_version);
-        $this->assertFalse($this->user->vault_locked);
+        $this->assertTrue($this->user->vault_locked);
+        $this->assertTrue($this->user->encryption_enabled);
     }
     
     /**
@@ -82,6 +83,7 @@ class EncryptionControllerTest extends TestCase
     public function test_encryption_setup_cannot_be_done_twice(): void
     {
         // First setup - must have all fields set
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'existing_salt';
         $this->user->encryption_test_value = '{"test":"value"}';
         $this->user->encryption_version = 1;
@@ -107,6 +109,7 @@ class EncryptionControllerTest extends TestCase
     public function test_user_can_get_encryption_info(): void
     {
         // Setup encryption
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'test_salt';
         $this->user->encryption_test_value = '{"ciphertext":"test","iv":"test","authTag":"test"}';
         $this->user->encryption_version = 1;
@@ -146,6 +149,7 @@ class EncryptionControllerTest extends TestCase
     public function test_user_can_lock_vault(): void
     {
         // Setup encryption
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'test_salt';
         $this->user->encryption_test_value = '{"test":"value"}';
         $this->user->encryption_version = 1;
@@ -180,6 +184,7 @@ class EncryptionControllerTest extends TestCase
      */
     public function test_vault_verification(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'test_salt';
         $this->user->encryption_test_value = '{"test":"value"}';
         $this->user->encryption_version = 1;
@@ -206,6 +211,7 @@ class EncryptionControllerTest extends TestCase
      */
     public function test_failed_verification(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'test_salt';
         $this->user->encryption_test_value = '{"test":"value"}';
         $this->user->encryption_version = 1;
@@ -250,6 +256,7 @@ class EncryptionControllerTest extends TestCase
      */
     public function test_user_can_get_encryption_salt(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'user_specific_salt_base64';
         $this->user->encryption_test_value = '{"test":"value"}';
         $this->user->encryption_version = 1;
@@ -270,6 +277,7 @@ class EncryptionControllerTest extends TestCase
     public function test_encryption_state_transitions(): void
     {
         // Setup encryption
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'test_salt';
         $this->user->encryption_test_value = '{"test":"value"}';
         $this->user->encryption_version = 1;
@@ -387,6 +395,7 @@ class EncryptionControllerTest extends TestCase
     public function test_vault_state_persists_across_requests(): void
     {
         // Setup encryption and lock vault
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'test_salt';
         $this->user->encryption_test_value = '{"test":"value"}';
         $this->user->encryption_version = 1;
@@ -409,6 +418,7 @@ class EncryptionControllerTest extends TestCase
      */
     public function test_verification_requires_valid_result_parameter(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = 'test_salt';
         $this->user->encryption_test_value = '{"test":"value"}';
         $this->user->encryption_version = 1;

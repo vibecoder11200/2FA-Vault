@@ -2,8 +2,11 @@
 
 namespace App\Api\v1\Resources;
 
+use App\Services\EncryptionService;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Config;
 
 /**
  * @property mixed $id
@@ -23,6 +26,8 @@ class UserResource extends JsonResource
      */
     public function toArray($request)
     {
+        $encryptionService = App::make(EncryptionService::class);
+
         return [
             'id'                     => $this->id,
             'name'                   => $this->name,
@@ -33,6 +38,7 @@ class UserResource extends JsonResource
             'is_admin'               => $this->is_admin,
             'encryption_version'     => $this->encryption_version,
             'vault_locked'           => $this->vault_locked,
+            'e2ee_required'          => $encryptionService->isEncryptionRequired($this->resource),
             'last_backup_at'         => $this->last_backup_at?->toIso8601String(),
         ];
     }

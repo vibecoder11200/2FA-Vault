@@ -14,10 +14,16 @@ export default function encryptionGate({ to, next, nextMiddleware, stores }) {
     const isSetupRoute = routeName === 'setup-encryption'
     const isUnlockRoute = routeName === 'unlock-vault'
     const hasEncryption = user.encryption_version > 0
+    const requiresSetup = user.e2ee_required === true && !hasEncryption
 
     if (!hasEncryption) {
         cryptoStore.disableEncryption()
         user.vault_locked = false
+
+        if (requiresSetup && !isSetupRoute) {
+            next({ name: 'setup-encryption' })
+            return
+        }
 
         if (isUnlockRoute) {
             next({ name: 'accounts' })
@@ -48,7 +54,7 @@ export default function encryptionGate({ to, next, nextMiddleware, stores }) {
 
     user.vault_locked = false
 
-    if (isUnlockRoute || isSetupRoute) {
+    if (isUnlockRoute || (isSetupRoute && user.e2ee_required === true)) {
         next({ name: 'accounts' })
         return
     }

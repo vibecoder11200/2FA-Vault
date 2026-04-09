@@ -76,7 +76,18 @@
         { text: 'label.15_minutes', value: 15 },
         { text: 'label.30_minutes', value: 30 },
         { text: 'label.1_hour', value: 60 },
-        { text: 'label.1_day', value: 1440 }, 
+        { text: 'label.1_day', value: 1440 },
+    ]
+    const vaultAutoLockModes = [
+        { text: 'label.immediately', value: 'immediately' },
+        { text: 'label.inactivity_timer', value: 'inactivity' },
+    ]
+    const vaultAutoLockMinutes = [
+        { text: 'label.5_minutes', value: 5 },
+        { text: 'label.10_minutes', value: 10 },
+        { text: 'label.15_minutes', value: 15 },
+        { text: 'label.30_minutes', value: 30 },
+        { text: 'label.1_hour', value: 60 },
     ]
     const autoCloseTimeout = [
         { text: 'label.never', value: 0 },
@@ -142,7 +153,9 @@
                 const status = pushNotifications.getStatus()
                 pushEnabled.value = status.subscribed
                 pushPermission.value = status.permission
-            } catch {}
+            } catch (error) {
+                console.debug('Failed to read push notification status', error)
+            }
         }
     })
 
@@ -364,6 +377,8 @@
                         <h4 class="title is-4 pt-4">{{ $t('heading.security') }}</h4>
                         <!-- auto lock -->
                         <FormSelect v-model="user.preferences.kickUserAfter" @update:model-value="val => savePreference('kickUserAfter', val)" :options="kickUserAfters" fieldName="kickUserAfter" :isLocked="appSettings.lockedPreferences.includes('kickUserAfter')" label="field.auto_lock" help="field.auto_lock.help" />
+                        <FormSelect v-model="user.preferences.vaultAutoLockMode" @update:model-value="val => savePreference('vaultAutoLockMode', val)" :options="vaultAutoLockModes" fieldName="vaultAutoLockMode" :isLocked="appSettings.lockedPreferences.includes('vaultAutoLockMode')" label="field.vault_auto_lock" help="field.vault_auto_lock.help" />
+                        <FormSelect v-model="user.preferences.vaultAutoLockMinutes" @update:model-value="val => savePreference('vaultAutoLockMinutes', val)" :options="vaultAutoLockMinutes" fieldName="vaultAutoLockMinutes" :isLocked="appSettings.lockedPreferences.includes('vaultAutoLockMinutes')" :isDisabled="user.preferences.vaultAutoLockMode !== 'inactivity'" label="field.vault_auto_lock_timeout" help="field.vault_auto_lock_timeout.help" :isIndented="true" />
                         <!-- get OTP on request -->
                         <FormToggle v-model="user.preferences.getOtpOnRequest" @update:model-value="val => savePreference('getOtpOnRequest', val)" :choices="getOtpTriggers" fieldName="getOtpOnRequest" :isLocked="appSettings.lockedPreferences.includes('getOtpOnRequest')" label="field.otp_generation" help="field.otp_generation.help"/>
                             <!-- close otp on copy -->
