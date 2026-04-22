@@ -26,7 +26,11 @@ class BackupControllerTest extends TestCase
 
         $this->user = User::factory()->create([
             'email' => 'test@example.com',
+            'encryption_enabled' => true,
+            'encryption_salt' => 'test_salt',
+            'encryption_test_value' => '{"ciphertext":"test","iv":"test","authTag":"test"}',
             'encryption_version' => 1,
+            'vault_locked' => false,
         ]);
 
         $this->team = Team::factory()->create([

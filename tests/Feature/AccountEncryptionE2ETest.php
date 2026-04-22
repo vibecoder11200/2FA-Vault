@@ -36,6 +36,7 @@ class AccountEncryptionE2ETest extends TestCase
     public function test_can_create_encrypted_twofaccount(): void
     {
         // Setup encryption for user
+        $this->user->encryption_enabled = true;
         $this->user->encryption_version = 1;
         $this->user->encryption_salt = base64_encode(random_bytes(32));
         $this->user->encryption_test_value = json_encode(['ciphertext' => base64_encode(random_bytes(32)), 'iv' => base64_encode(random_bytes(12)), 'authTag' => base64_encode(random_bytes(16))]);
@@ -73,6 +74,7 @@ class AccountEncryptionE2ETest extends TestCase
      */
     public function test_can_update_encrypted_twofaccount(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = base64_encode(random_bytes(32));
         $this->user->encryption_test_value = json_encode(['ciphertext' => base64_encode(random_bytes(32)), 'iv' => base64_encode(random_bytes(12)), 'authTag' => base64_encode(random_bytes(16))]);
         $this->user->encryption_version = 1;
@@ -118,6 +120,7 @@ class AccountEncryptionE2ETest extends TestCase
      */
     public function test_can_delete_encrypted_twofaccount(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = base64_encode(random_bytes(32));
         $this->user->encryption_test_value = json_encode(['ciphertext' => base64_encode(random_bytes(32)), 'iv' => base64_encode(random_bytes(12)), 'authTag' => base64_encode(random_bytes(16))]);
         $this->user->encryption_version = 1;
@@ -148,6 +151,7 @@ class AccountEncryptionE2ETest extends TestCase
      */
     public function test_can_handle_mixed_encrypted_unencrypted_accounts(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = base64_encode(random_bytes(32));
         $this->user->encryption_test_value = json_encode(['ciphertext' => base64_encode(random_bytes(32)), 'iv' => base64_encode(random_bytes(12)), 'authTag' => base64_encode(random_bytes(16))]);
         $this->user->encryption_version = 1;
@@ -187,6 +191,7 @@ class AccountEncryptionE2ETest extends TestCase
     public function test_can_re_encrypt_accounts_on_password_change(): void
     {
         // Setup encryption
+        $this->user->encryption_enabled = true;
         $this->user->encryption_version = 1;
         $this->user->encryption_salt = 'old_salt';
         $this->user->encryption_test_value = json_encode([
@@ -243,6 +248,7 @@ class AccountEncryptionE2ETest extends TestCase
      */
     public function test_validates_encrypted_secret_structure(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = base64_encode(random_bytes(32));
         $this->user->encryption_test_value = json_encode(['ciphertext' => base64_encode(random_bytes(32)), 'iv' => base64_encode(random_bytes(12)), 'authTag' => base64_encode(random_bytes(16))]);
         $this->user->encryption_version = 1;
@@ -275,6 +281,7 @@ class AccountEncryptionE2ETest extends TestCase
      */
     public function test_account_listing_shows_encryption_status(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = base64_encode(random_bytes(32));
         $this->user->encryption_test_value = json_encode(['ciphertext' => base64_encode(random_bytes(32)), 'iv' => base64_encode(random_bytes(12)), 'authTag' => base64_encode(random_bytes(16))]);
         $this->user->encryption_version = 1;
@@ -311,6 +318,7 @@ class AccountEncryptionE2ETest extends TestCase
      */
     public function test_can_batch_update_encrypted_secrets(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = base64_encode(random_bytes(32));
         $this->user->encryption_test_value = json_encode(['ciphertext' => base64_encode(random_bytes(32)), 'iv' => base64_encode(random_bytes(12)), 'authTag' => base64_encode(random_bytes(16))]);
         $this->user->encryption_version = 1;
@@ -363,6 +371,7 @@ class AccountEncryptionE2ETest extends TestCase
      */
     public function test_export_includes_encrypted_accounts(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = base64_encode(random_bytes(32));
         $this->user->encryption_test_value = json_encode(['ciphertext' => base64_encode(random_bytes(32)), 'iv' => base64_encode(random_bytes(12)), 'authTag' => base64_encode(random_bytes(16))]);
         $this->user->encryption_version = 1;
@@ -392,6 +401,7 @@ class AccountEncryptionE2ETest extends TestCase
      */
     public function test_migrate_handles_encrypted_accounts(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = base64_encode(random_bytes(32));
         $this->user->encryption_test_value = json_encode(['ciphertext' => base64_encode(random_bytes(32)), 'iv' => base64_encode(random_bytes(12)), 'authTag' => base64_encode(random_bytes(16))]);
         $this->user->encryption_version = 1;
@@ -415,6 +425,7 @@ class AccountEncryptionE2ETest extends TestCase
      */
     public function test_encrypted_accounts_survive_group_assignment(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = base64_encode(random_bytes(32));
         $this->user->encryption_test_value = json_encode(['ciphertext' => base64_encode(random_bytes(32)), 'iv' => base64_encode(random_bytes(12)), 'authTag' => base64_encode(random_bytes(16))]);
         $this->user->encryption_version = 1;
@@ -453,6 +464,7 @@ class AccountEncryptionE2ETest extends TestCase
      */
     public function test_withdraw_removes_group_but_keeps_encryption(): void
     {
+        $this->user->encryption_enabled = true;
         $this->user->encryption_salt = base64_encode(random_bytes(32));
         $this->user->encryption_test_value = json_encode(['ciphertext' => base64_encode(random_bytes(32)), 'iv' => base64_encode(random_bytes(12)), 'authTag' => base64_encode(random_bytes(16))]);
         $this->user->encryption_version = 1;
