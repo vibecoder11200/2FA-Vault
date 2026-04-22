@@ -22,6 +22,17 @@ use Tests\FeatureTestCase;
 #[CoversClass(DissociateTwofaccountFromGroup::class)]
 class GroupControllerTest extends FeatureTestCase
 {
+    protected function createEncryptedUser(array $attributes = []): User
+    {
+        return User::factory()->create(array_merge([
+            'encryption_enabled' => true,
+            'encryption_salt' => 'test_salt',
+            'encryption_test_value' => '{"ciphertext":"test","iv":"test","authTag":"test"}',
+            'encryption_version' => 1,
+            'vault_locked' => false,
+        ], $attributes));
+    }
+
     /**
      * @var \App\Models\User|\Illuminate\Contracts\Auth\Authenticatable
      */
@@ -57,7 +68,7 @@ class GroupControllerTest extends FeatureTestCase
     {
         parent::setUp();
 
-        $this->user       = User::factory()->create();
+        $this->user       = $this->createEncryptedUser();
         $this->userGroupA = Group::factory()->for($this->user)->create();
         $this->userGroupB = Group::factory()->for($this->user)->create();
 
@@ -68,7 +79,7 @@ class GroupControllerTest extends FeatureTestCase
             'group_id' => $this->userGroupA->id,
         ]);
 
-        $this->anotherUser       = User::factory()->create();
+        $this->anotherUser       = $this->createEncryptedUser();
         $this->anotherUserGroupA = Group::factory()->for($this->anotherUser)->create();
         $this->anotherUserGroupB = Group::factory()->for($this->anotherUser)->create();
 

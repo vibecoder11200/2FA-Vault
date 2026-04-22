@@ -45,6 +45,17 @@ use Tests\FeatureTestCase;
 #[CoversClass(TwoFAccountPolicy::class)]
 class TwoFAccountControllerTest extends FeatureTestCase
 {
+    protected function createEncryptedUser(array $attributes = []): User
+    {
+        return User::factory()->create(array_merge([
+            'encryption_enabled' => true,
+            'encryption_salt' => 'test_salt',
+            'encryption_test_value' => '{"ciphertext":"test","iv":"test","authTag":"test"}',
+            'encryption_version' => 1,
+            'vault_locked' => false,
+        ], $attributes));
+    }
+
     /**
      * @var \App\Models\User|\Illuminate\Contracts\Auth\Authenticatable
      */
@@ -253,7 +264,7 @@ class TwoFAccountControllerTest extends FeatureTestCase
             'example.com/*'                                  => Http::response(null, 400),
         ]);
 
-        $this->user       = User::factory()->create();
+        $this->user       = $this->createEncryptedUser();
         $this->userGroupA = Group::factory()->for($this->user)->create();
         $this->userGroupB = Group::factory()->for($this->user)->create();
 
@@ -264,7 +275,7 @@ class TwoFAccountControllerTest extends FeatureTestCase
             'group_id' => $this->userGroupA->id,
         ]);
 
-        $this->anotherUser       = User::factory()->create();
+        $this->anotherUser       = $this->createEncryptedUser();
         $this->anotherUserGroupA = Group::factory()->for($this->anotherUser)->create();
         $this->anotherUserGroupB = Group::factory()->for($this->anotherUser)->create();
 

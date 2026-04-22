@@ -16,6 +16,17 @@ use Tests\FeatureTestCase;
 #[CoversClass(QrCodeController::class)]
 class QrCodeControllerTest extends FeatureTestCase
 {
+    protected function createEncryptedUser(array $attributes = []): User
+    {
+        return User::factory()->create(array_merge([
+            'encryption_enabled' => true,
+            'encryption_salt' => 'test_salt',
+            'encryption_test_value' => '{"ciphertext":"test","iv":"test","authTag":"test"}',
+            'encryption_version' => 1,
+            'vault_locked' => false,
+        ], $attributes));
+    }
+
     /**
      * @var \App\Models\User|\Illuminate\Contracts\Auth\Authenticatable
      */
@@ -32,8 +43,8 @@ class QrCodeControllerTest extends FeatureTestCase
     {
         parent::setUp();
 
-        $this->user        = User::factory()->create();
-        $this->anotherUser = User::factory()->create();
+        $this->user        = $this->createEncryptedUser();
+        $this->anotherUser = $this->createEncryptedUser();
 
         $this->twofaccount = TwoFAccount::factory()->for($this->user)->create([
             'otp_type'   => 'totp',

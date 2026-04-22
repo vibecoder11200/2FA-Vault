@@ -43,7 +43,13 @@ class IconControllerTest extends FeatureTestCase
             OtpTestData::EXTERNAL_IMAGE_URL_DECODED => Http::response((new FileFactory)->image('file.png', 10, 10)->tempFile, 200),
         ]);
 
-        $this->user = User::factory()->create();
+        $this->user = User::factory()->create([
+            'encryption_enabled' => true,
+            'encryption_salt' => 'test_salt',
+            'encryption_test_value' => '{"ciphertext":"test","iv":"test","authTag":"test"}',
+            'encryption_version' => 1,
+            'vault_locked' => false,
+        ]);
     }
 
     #[Test]
