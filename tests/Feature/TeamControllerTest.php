@@ -12,12 +12,23 @@ class TeamControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function createEncryptedUser(array $attributes = []): User
+    {
+        return User::factory()->create(array_merge([
+            'encryption_enabled' => true,
+            'encryption_salt' => 'test_salt',
+            'encryption_test_value' => '{"ciphertext":"test","iv":"test","authTag":"test"}',
+            'encryption_version' => 1,
+            'vault_locked' => false,
+        ], $attributes));
+    }
+
     /**
      * Test user can create a team
      */
     public function test_user_can_create_team()
     {
-        $user = User::factory()->create();
+        $user = $this->createEncryptedUser();
         
         $response = $this->actingAs($user, 'api-guard')->postJson('/api/v1/teams', [
             'name' => 'Development Team',
@@ -49,7 +60,7 @@ class TeamControllerTest extends TestCase
      */
     public function test_user_can_list_teams()
     {
-        $user = User::factory()->create();
+        $user = $this->createEncryptedUser();
         
         // Create teams where user is member
         $team1 = Team::factory()->create();
@@ -72,8 +83,8 @@ class TeamControllerTest extends TestCase
      */
     public function test_user_can_invite_to_team()
     {
-        $owner = User::factory()->create();
-        $invitee = User::factory()->create();
+        $owner = $this->createEncryptedUser();
+        $invitee = $this->createEncryptedUser();
         
         $team = Team::factory()->create(['owner_id' => $owner->id]);
         $team->users()->attach($owner->id, ['role' => 'owner', 'joined_at' => now()]);
@@ -98,8 +109,8 @@ class TeamControllerTest extends TestCase
      */
     public function test_user_can_join_team_via_invite()
     {
-        $owner = User::factory()->create();
-        $invitee = User::factory()->create();
+        $owner = $this->createEncryptedUser();
+        $invitee = $this->createEncryptedUser();
         
         $team = Team::factory()->create(['owner_id' => $owner->id]);
         
@@ -133,8 +144,8 @@ class TeamControllerTest extends TestCase
      */
     public function test_user_can_leave_team()
     {
-        $owner = User::factory()->create();
-        $member = User::factory()->create();
+        $owner = $this->createEncryptedUser();
+        $member = $this->createEncryptedUser();
         
         $team = Team::factory()->create(['owner_id' => $owner->id]);
         
@@ -156,8 +167,8 @@ class TeamControllerTest extends TestCase
      */
     public function test_owner_can_delete_team()
     {
-        $owner = User::factory()->create();
-        
+        $owner = $this->createEncryptedUser();
+
         $team = Team::factory()->create(['owner_id' => $owner->id]);
         $team->users()->attach($owner->id, ['role' => 'owner', 'joined_at' => now()]);
 
@@ -176,9 +187,9 @@ class TeamControllerTest extends TestCase
      */
     public function test_admin_can_remove_member()
     {
-        $owner = User::factory()->create();
-        $admin = User::factory()->create();
-        $member = User::factory()->create();
+        $owner = $this->createEncryptedUser();
+        $admin = $this->createEncryptedUser();
+        $member = $this->createEncryptedUser();
         
         $team = Team::factory()->create(['owner_id' => $owner->id]);
         
@@ -201,8 +212,8 @@ class TeamControllerTest extends TestCase
      */
     public function test_viewer_cannot_update_team()
     {
-        $owner = User::factory()->create();
-        $viewer = User::factory()->create();
+        $owner = $this->createEncryptedUser();
+        $viewer = $this->createEncryptedUser();
         
         $team = Team::factory()->create(['owner_id' => $owner->id]);
         
