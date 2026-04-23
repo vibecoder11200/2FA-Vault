@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
 const DB_PATH = path.resolve(ROOT, 'database/database_e2e.sqlite');
 const IS_CI = process.env.CI === 'true' || process.env.CI === '1';
-const E2E_ORIGIN = 'http://localhost:8001';
+const E2E_ORIGIN = 'http://127.0.0.1:8001';
 const E2E_ENV = {
   ...process.env,
   APP_ENV: 'e2e',
@@ -88,7 +88,7 @@ console.log(`[E2E Server] Verified built app entry: ${appEntry.file}`);
 console.log('[E2E Server] Starting Laravel on port 8001...');
 
 // Start the Laravel server (blocking)
-const server = spawn('php', ['artisan', 'serve', '--host=localhost', '--port=8001', '--env=e2e'], {
+const server = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', '--port=8001', '--env=e2e'], {
   cwd: ROOT,
   env: E2E_ENV,
   stdio: 'inherit',
