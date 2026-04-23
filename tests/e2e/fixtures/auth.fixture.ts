@@ -16,21 +16,39 @@ async function performLogin(page: Page, email: string, password: string): Promis
   await page.goto(routes.login);
 
   const legacyForm = page.locator(sel.legacyLoginForm);
-  const webauthnForm = page.locator('#frmWebauthnLogin');
+  const webauthnForm = page.locator(sel.webauthnLoginForm);
   const ssoForm = page.locator('#lnkSsoDocs');
   const legacyLink = page.locator(sel.switchToLegacy);
 
-  // Wait for whichever login surface is currently active.
-  await Promise.race([
-    legacyForm.waitFor({ state: 'visible', timeout: 15000 }),
-    webauthnForm.waitFor({ state: 'visible', timeout: 15000 }),
-    ssoForm.waitFor({ state: 'visible', timeout: 15000 }),
-    legacyLink.waitFor({ state: 'visible', timeout: 15000 }),
-  ]);
+  const detectLoginSurface = async () => {
+    const deadline = Date.now() + 15000;
 
-  if (await legacyLink.isVisible()) {
+    while (Date.now() < deadline) {
+      if (await legacyForm.isVisible().catch(() => false)) return 'legacy';
+      if (await legacyLink.isVisible().catch(() => false)) return 'switch-to-legacy';
+      if (await webauthnForm.isVisible().catch(() => false)) return 'webauthn';
+      if (await ssoForm.isVisible().catch(() => false)) return 'sso';
+
+      await page.waitForTimeout(250);
+    }
+
+    return 'unknown';
+  };
+
+  const loginSurface = await detectLoginSurface();
+
+  if (loginSurface === 'switch-to-legacy') {
     await legacyLink.click();
     await legacyForm.waitFor({ state: 'visible', timeout: 15000 });
+  }
+
+  if (loginSurface === 'sso') {
+    throw new Error(`Login page is in SSO-only mode for ${email} at ${page.url()}`);
+  }
+
+  if (loginSurface === 'unknown') {
+    const bodySnippet = await page.locator('body').innerText().catch(() => 'unable to read body text');
+    throw new Error(`Unable to detect login surface for ${email} at ${page.url()}. Body snippet: ${bodySnippet.slice(0, 500)}`);
   }
 
   await legacyForm.waitFor({ state: 'visible', timeout: 15000 });
