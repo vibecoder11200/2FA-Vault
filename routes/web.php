@@ -23,6 +23,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 // use Illuminate\Foundation\Events\DiagnosingHealth;
 // use Illuminate\Support\Facades\Event;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // use App\Models\User;
@@ -98,8 +99,15 @@ Route::group(['middleware' => ['behind-auth', 'admin']], function () {
     Route::get('system/clear-cache', [SystemController::class, 'clear'])->name('system.clear');
 });
 
-Route::get('refresh-csrf', function () {
-    return csrf_token();
+Route::get('refresh-csrf', function (Request $request) {
+    $request->session()->regenerateToken();
+
+    return response()->json([
+        'token' => csrf_token(),
+    ], 200, [
+        'Cache-Control' => 'no-store, no-cache, must-revalidate',
+        'Pragma' => 'no-cache',
+    ]);
 });
 
 Route::withoutMiddleware([

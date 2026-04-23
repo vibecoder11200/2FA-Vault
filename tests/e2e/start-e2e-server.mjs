@@ -19,6 +19,9 @@ const E2E_ENV = {
   ASSET_URL: E2E_ORIGIN,
   DB_CONNECTION: 'sqlite',
   DB_DATABASE: DB_PATH,
+  SESSION_SECURE_COOKIE: 'false',
+  SESSION_SAME_SITE: 'lax',
+  SESSION_DOMAIN: '',
 };
 
 function runCommand(command, label, options = {}) {
@@ -54,6 +57,7 @@ if (!fs.existsSync(DB_PATH)) {
 // Run migrations and seed
 console.log('[E2E Server] Running migrations...');
 runCommand('php artisan config:clear', 'config:clear');
+runCommand('php artisan route:clear', 'route:clear');
 runCommand('php artisan migrate:fresh --env=e2e --force', 'migrate:fresh');
 console.log('[E2E Server] Seeding database...');
 runCommand('php artisan db:seed --class=E2eSeeder --env=e2e --force', 'db:seed');
