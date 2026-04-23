@@ -16,7 +16,15 @@ export const httpClientFactory = (endpoint = 'api') => {
 		baseURL,
 		headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
 		withCredentials: true,
+		xsrfCookieName: 'XSRF-TOKEN',
+		xsrfHeaderName: 'X-XSRF-TOKEN',
+		withXSRFToken: true,
 	})
+
+	const csrfMetaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+	if (csrfMetaToken) {
+		httpClient.defaults.headers.common['X-CSRF-TOKEN'] = csrfMetaToken
+	}
 
 	// httpClient.interceptors.request.use(
     //     async function (config) {
@@ -48,7 +56,15 @@ export const httpClientFactory = (endpoint = 'api') => {
             // We try to get a fresh on, but only once.
             if (error.response.status === 419 && ! originalRequestConfig._retried) {
                 originalRequestConfig._retried = true;
-                await axios.get('/refresh-csrf')
+                delete originalRequestConfig.headers?.['X-CSRF-TOKEN']
+                delete originalRequestConfig.headers?.['X-XSRF-TOKEN']
+                await httpClient.get('/refresh-csrf')
+
+                const refreshedCsrfMetaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                if (refreshedCsrfMetaToken) {
+                    httpClient.defaults.headers.common['X-CSRF-TOKEN'] = refreshedCsrfMetaToken
+                }
+
                 return httpClient.request(originalRequestConfig)
             }
 
