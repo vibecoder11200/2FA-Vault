@@ -14,6 +14,13 @@ type AuthFixture = {
 
 async function performLogin(page: Page, email: string, password: string): Promise<void> {
   await page.goto(routes.login);
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await page.locator('#app').waitFor({ state: 'attached', timeout: 15000 });
+  await Promise.race([
+    page.getByRole('heading', { name: 'Login' }).waitFor({ state: 'visible', timeout: 15000 }),
+    page.getByRole('heading', { name: 'Webauthn login' }).waitFor({ state: 'visible', timeout: 15000 }),
+    page.getByRole('heading', { name: 'SSO login' }).waitFor({ state: 'visible', timeout: 15000 }),
+  ]).catch(() => {});
 
   const legacyForm = page.locator(sel.legacyLoginForm);
   const webauthnForm = page.locator(sel.webauthnLoginForm);
@@ -47,8 +54,22 @@ async function performLogin(page: Page, email: string, password: string): Promis
   }
 
   if (loginSurface === 'unknown') {
-    const bodySnippet = await page.locator('body').innerText().catch(() => 'unable to read body text');
-    throw new Error(`Unable to detect login surface for ${email} at ${page.url()}. Body snippet: ${bodySnippet.slice(0, 500)}`);
+    const bodyHtml = await page.locator('body').evaluate((node) => node.innerHTML).catch(() => 'unable to read body html');
+    const activeLoginForm = await page.evaluate(() => {
+      const storage = window.localStorage;
+      const keys = Object.keys(storage).filter((key) => key.endsWith('activeLoginForm'));
+      return keys.map((key) => ({ key, value: storage.getItem(key) }));
+    }).catch(() => []);
+    const headings = await page.getByRole('heading').allTextContents().catch(() => []);
+    const forms = await page.locator('form').evaluateAll((nodes) => nodes.map((node) => ({ id: node.id, className: node.className }))).catch(() => []);
+
+    throw new Error(
+      `Unable to detect login surface for ${email} at ${page.url()}. ` +
+      `activeLoginForm=${JSON.stringify(activeLoginForm)} ` +
+      `headings=${JSON.stringify(headings)} ` +
+      `forms=${JSON.stringify(forms)} ` +
+      `bodyHtml=${String(bodyHtml).slice(0, 2000)}`
+    );
   }
 
   await legacyForm.waitFor({ state: 'visible', timeout: 15000 });
