@@ -34,7 +34,7 @@ export default defineConfig({
     command: 'node tests/e2e/start-e2e-server.mjs',
     url: 'http://127.0.0.1:8001',
     reuseExistingServer: false,
-    timeout: 60000,
+    timeout: 240000,
   },
   globalSetup: path.resolve(__dirname, 'tests/e2e/global-setup.ts'),
   globalTeardown: path.resolve(__dirname, 'tests/e2e/global-teardown.ts'),
