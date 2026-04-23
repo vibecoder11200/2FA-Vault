@@ -118,13 +118,33 @@ async function performLogin(page: Page, email: string, password: string): Promis
   // Submit
   await legacyForm.locator(sel.signInButton).click();
 
-  // Wait for SPA navigation (client-side routing)
-  await Promise.race([
-    page.waitForURL('**/accounts', { timeout: 15000 }),
-    page.waitForURL('**/start', { timeout: 15000 }),
-    page.waitForURL('**/setup-encryption', { timeout: 15000 }),
-    page.waitForURL('**/unlock-vault', { timeout: 15000 }),
-  ]);
+  try {
+    // Wait for SPA navigation (client-side routing)
+    await Promise.race([
+      page.waitForURL('**/accounts', { timeout: 15000 }),
+      page.waitForURL('**/start', { timeout: 15000 }),
+      page.waitForURL('**/setup-encryption', { timeout: 15000 }),
+      page.waitForURL('**/unlock-vault', { timeout: 15000 }),
+    ]);
+  } catch (error) {
+    const bodyHtml = await page.locator('body').evaluate((node) => node.innerHTML).catch(() => 'unable to read body html');
+    const errorText = await page.locator('.error-message').allTextContents().catch(() => []);
+    const loginResponses = assetResponses.filter((entry) => entry.includes('/login') || entry.includes('/user/login') || entry.includes('/api/v1/')).slice(-20);
+
+    page.off('console', consoleHandler);
+    page.off('requestfailed', requestFailedHandler);
+    page.off('response', responseHandler);
+
+    throw new Error(
+      `Login navigation failed for ${email} at ${page.url()}. ` +
+      `errorText=${JSON.stringify(errorText)} ` +
+      `loginResponses=${JSON.stringify(loginResponses)} ` +
+      `failedRequests=${JSON.stringify(failedRequests.slice(-20))} ` +
+      `consoleMessages=${JSON.stringify(consoleMessages.slice(-20))} ` +
+      `bodyHtml=${String(bodyHtml).slice(0, 2000)}`,
+      { cause: error }
+    );
+  }
 
   page.off('console', consoleHandler);
   page.off('requestfailed', requestFailedHandler);
