@@ -38,7 +38,7 @@ test.describe('Encryption Flow', () => {
   test('P1: Locked encrypted user remains on unlock-vault with invalid unlock password', async ({ page, loginAsLockedEncrypted }) => {
     await page.goto(routes.unlockVault);
 
-    const passwordInput = page.locator('input[placeholder="Enter your master password"]');
+    const passwordInput = page.getByLabel('Master Password', { exact: true });
     await expect(passwordInput).toBeVisible({ timeout: 10000 });
     await passwordInput.fill('password');
     await page.getByRole('button', { name: /Unlock Vault/ }).click();
