@@ -191,6 +191,7 @@ class UserManagerControllerTest extends FeatureTestCase
     public function test_resetPassword_returns_UserManagerResource()
     {
         Notification::fake();
+        Carbon::setTestNow(Carbon::now());
 
         $user    = User::factory()->create();
         $path    = '/api/v1/users/' . $user->id . '/password/reset';
@@ -203,6 +204,8 @@ class UserManagerControllerTest extends FeatureTestCase
         $resources = UserManagerResource::make($user);
 
         $response->assertExactJson($resources->response($request)->getData(true));
+
+        Carbon::setTestNow();
     }
 
     #[Test]
