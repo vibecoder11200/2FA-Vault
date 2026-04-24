@@ -25,11 +25,23 @@ async function performLogin(page: Page, email: string, password: string): Promis
     failedRequests.push(`${request.method()} ${request.url()} => ${request.failure()?.errorText ?? 'unknown failure'}`);
   };
 
-  const responseHandler = (response) => {
+  const responseHandler = async (response) => {
     const url = response.url();
-    if (url.includes('/build/') || url.endsWith('/login')) {
-      assetResponses.push(`${response.status()} ${url} (${response.request().resourceType()})`);
+    const status = response.status();
+    const shouldCapture = url.includes('/build/') || url.endsWith('/login') || status >= 400 || url.includes('/api/v1/') || url.includes('/user/') || url.includes('/refresh-csrf');
+
+    if (!shouldCapture) return;
+
+    let bodySnippet = '';
+    if (status >= 400) {
+      try {
+        const text = await response.text();
+        bodySnippet = ` body=${text.slice(0, 500)}`;
+      } catch {
+        bodySnippet = ' body=<unavailable>';
+      }
     }
+    assetResponses.push(`${status} ${url} (${response.request().resourceType()})${bodySnippet}`);
   };
 
   page.on('console', consoleHandler);
@@ -129,7 +141,7 @@ async function performLogin(page: Page, email: string, password: string): Promis
   } catch (error) {
     const bodyHtml = await page.locator('body').evaluate((node) => node.innerHTML).catch(() => 'unable to read body html');
     const errorText = await page.locator('.error-message').allTextContents().catch(() => []);
-    const loginResponses = assetResponses.filter((entry) => entry.includes('/login') || entry.includes('/user/login') || entry.includes('/api/v1/')).slice(-20);
+    const loginResponses = assetResponses.slice(-30);
 
     page.off('console', consoleHandler);
     page.off('requestfailed', requestFailedHandler);
