@@ -1,7 +1,7 @@
 name: CI
 
 env:
-  COMPONENTS_REPOSITORY: TranAnSE/2FAuth-Components
+  COMPONENTS_REPOSITORY: TranAnSE/2FA-Vault-Components
   COMPONENTS_REF: main
 
 on:
@@ -59,12 +59,12 @@ jobs:
         with:
           path: 2FA-Vault
 
-      - name: Checkout 2FAuth-Components
+      - name: Checkout 2FA-Vault-Components
         uses: actions/checkout@v4
         with:
           repository: ${{ env.COMPONENTS_REPOSITORY }}
           ref: ${{ env.COMPONENTS_REF }}
-          path: 2FAuth-Components
+          path: 2FA-Vault-Components
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -74,11 +74,11 @@ jobs:
       - name: Verify sibling component dependency layout
         working-directory: ./2FA-Vault
         run: |
-          test -d ../2FAuth-Components
-          test -d ../2FAuth-Components/packages/ui
-          test -d ../2FAuth-Components/packages/formcontrols
-          test -d ../2FAuth-Components/packages/styles
-          test -d ../2FAuth-Components/packages/stores
+          test -d ../2FA-Vault-Components
+          test -d ../2FA-Vault-Components/packages/ui
+          test -d ../2FA-Vault-Components/packages/formcontrols
+          test -d ../2FA-Vault-Components/packages/styles
+          test -d ../2FA-Vault-Components/packages/stores
 
       - name: Install frontend dependencies
         working-directory: ./2FA-Vault
@@ -99,12 +99,12 @@ jobs:
         with:
           path: 2FA-Vault
 
-      - name: Checkout 2FAuth-Components
+      - name: Checkout 2FA-Vault-Components
         uses: actions/checkout@v4
         with:
           repository: ${{ env.COMPONENTS_REPOSITORY }}
           ref: ${{ env.COMPONENTS_REF }}
-          path: 2FAuth-Components
+          path: 2FA-Vault-Components
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -141,11 +141,11 @@ jobs:
       - name: Verify sibling component dependency layout
         working-directory: ./2FA-Vault
         run: |
-          test -d ../2FAuth-Components
-          test -d ../2FAuth-Components/packages/ui
-          test -d ../2FAuth-Components/packages/formcontrols
-          test -d ../2FAuth-Components/packages/styles
-          test -d ../2FAuth-Components/packages/stores
+          test -d ../2FA-Vault-Components
+          test -d ../2FA-Vault-Components/packages/ui
+          test -d ../2FA-Vault-Components/packages/formcontrols
+          test -d ../2FA-Vault-Components/packages/styles
+          test -d ../2FA-Vault-Components/packages/stores
 
       - name: Install frontend dependencies
         working-directory: ./2FA-Vault

@@ -70,7 +70,7 @@ export const routes = {
 };
 
 /**
- * Selectors derived from the 2FAuth-Components ID generator.
+ * Selectors derived from the 2FA-Vault-Components ID generator.
  *
  * Pattern: {prefix}{FieldName}
  *   email field  → #emlEmail

@@ -17,7 +17,7 @@ services:
       # Mount entire project for live reloading
       - .:/srv:cached
       # Mount sibling component workspace required by Vite aliases
-      - ../2FAuth-Components:/2FAuth-Components:cached
+      - ../2FA-Vault-Components:/2FA-Vault-Components:cached
       # Persist vendor and node_modules (faster on Windows)
       - vendor:/srv/vendor
       - node_modules:/srv/node_modules
@@ -115,7 +115,7 @@ services:
       - "5174:5173"
     volumes:
       - .:/srv:cached
-      - ../2FAuth-Components:/2FAuth-Components:cached
+      - ../2FA-Vault-Components:/2FA-Vault-Components:cached
       - node_modules:/srv/node_modules
     environment:
       - NODE_ENV=development

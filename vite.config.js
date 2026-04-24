@@ -10,9 +10,9 @@ import version from './vite.version'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// Resolve 2FAuth-Components packages relative to this project's node_modules
+// Resolve 2FA-Vault-Components packages relative to this project's node_modules
 // (installed via file: protocol in package.json)
-const componentsRoot = path.resolve(__dirname, '../2FAuth-Components')
+const componentsRoot = path.resolve(__dirname, '../2FA-Vault-Components')
 
 const ASSET_URL = process.env.ASSET_URL || ''
 
