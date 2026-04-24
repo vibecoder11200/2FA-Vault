@@ -19,9 +19,16 @@ const E2E_ENV = {
   ASSET_URL: E2E_ORIGIN,
   DB_CONNECTION: 'sqlite',
   DB_DATABASE: DB_PATH,
+  // Pin session + CSP defaults explicitly. `php artisan serve` spawns a
+  // fresh PHP worker for every request; relying solely on .env.e2e being
+  // picked up has proven flaky in CI, so we also surface critical values
+  // through the process environment.
+  SESSION_DRIVER: 'file',
   SESSION_SECURE_COOKIE: 'false',
   SESSION_SAME_SITE: 'lax',
   SESSION_DOMAIN: '',
+  CACHE_DRIVER: 'array',
+  CONTENT_SECURITY_POLICY: 'false',
 };
 
 function runCommand(command, label, options = {}) {

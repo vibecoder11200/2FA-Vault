@@ -20,12 +20,12 @@ class AddContentSecurityPolicyHeaders
             // Some CSP directives can be used with nonce but not all of them.
             // We build a space separated list of addresses to be allowed.
             Vite::useCspNonce();
-            $authorizedAddresses[] = config('app.url') . ':*';
+            $authorizedAddresses[] = $this->cspHostSource(config('app.url'));
             $authorizedAddresses[] = 'https://fastly.jsdelivr.net:*';
 
             // We add custom asset url if defined
             if (config('app.asset_url') && config('app.asset_url') != config('app.url')) {
-                $authorizedAddresses[] = config('app.asset_url') . ':*';
+                $authorizedAddresses[] = $this->cspHostSource(config('app.asset_url'));
             }
 
             // We add 'ws://' protocole and localhost ip address to avoid error with
@@ -62,5 +62,15 @@ class AddContentSecurityPolicyHeaders
         }
 
         return $next($request);
+    }
+
+    /**
+     * Build a CSP host-source entry from a URL. Appends `:*` only when the
+     * URL does not already carry an explicit port, so we never emit the
+     * invalid `http://host:port:*` form that browsers discard.
+     */
+    private function cspHostSource(string $url) : string
+    {
+        return parse_url($url, PHP_URL_PORT) ? $url : $url . ':*';
     }
 }
