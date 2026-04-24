@@ -54,7 +54,6 @@ export const httpClientFactory = (endpoint = 'api') => {
 			if (csrfToken) {
 				config.headers = {
 					...config.headers,
-					'X-CSRF-TOKEN': csrfToken,
 					'X-XSRF-TOKEN': csrfToken,
 				}
 			}
