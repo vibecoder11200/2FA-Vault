@@ -68,6 +68,7 @@ class UserFactory extends Factory
     {
         return $this->state(function (array $attributes) {
             return [
+                'encryption_enabled' => true,
                 'encryption_salt' => base64_encode(random_bytes(32)),
                 'encryption_test_value' => json_encode([
                     'ciphertext' => base64_encode(random_bytes(32)),
