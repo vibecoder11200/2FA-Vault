@@ -1538,5 +1538,14 @@
     "title.admin.invitations": "Invitations",
     "title.admin.rateLimits": "Rate limits",
     "title.notFound": "Page not found",
-    "error.invalid_backup_file": "Invalid or unreadable backup file"
+    "error.invalid_backup_file": "Invalid or unreadable backup file",
+    "pwa.install.ios.step1": "Tap the Share button at the bottom of Safari",
+    "pwa.install.ios.step2": "Scroll down and tap \"Add to Home Screen\"",
+    "pwa.install.ios.step3": "Tap \"Add\" in the top right corner",
+    "pwa.install.android.step1": "Tap the menu button (three dots)",
+    "pwa.install.android.step2": "Tap \"Add to Home screen\" or \"Install app\"",
+    "pwa.install.android.step3": "Tap \"Add\" or \"Install\" to confirm",
+    "pwa.install.desktop.step1": "Click the install icon in the address bar",
+    "pwa.install.desktop.step2": "Or open the browser menu and select \"Install 2FA-Vault\"",
+    "pwa.install.desktop.step3": "Click \"Install\" to confirm"
 }

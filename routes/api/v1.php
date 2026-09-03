@@ -45,7 +45,7 @@ Route::get('user/name', function () {
  * Routes protected by the api authentication guard
  */
 Route::group(['middleware' => ['auth:api-guard', 'enforceMandatoryEncryption', 'pat.scopes:read,otp']], function () {
-    Route::get('user', [UserController::class, 'show'])->name('user.show'); // Returns email address in addition to the username
+    Route::get('user', [UserController::class, 'show'])->name('user.show')->middleware('pat.scopes:read'); // Returns email address in addition to the username
 
     // Personal activity routes
     Route::get('user/activity', [PersonalActivityController::class, 'index'])->name('user.activity.index');
@@ -76,7 +76,7 @@ Route::group(['middleware' => ['auth:api-guard', 'enforceMandatoryEncryption', '
     Route::post('twofaccounts/reorder', [TwoFAccountController::class, 'reorder'])->name('twofaccounts.reorder')->middleware('pat.scopes:write');
     Route::post('twofaccounts/migration', [TwoFAccountController::class, 'migrate'])->name('twofaccounts.migrate');
     Route::post('twofaccounts/preview', [TwoFAccountController::class, 'preview'])->name('twofaccounts.preview');
-    Route::get('twofaccounts/export', [TwoFAccountController::class, 'export'])->name('twofaccounts.export');
+    Route::get('twofaccounts/export', [TwoFAccountController::class, 'export'])->name('twofaccounts.export')->middleware('pat.scopes:read');
     Route::get('twofaccounts/encrypted', [TwoFAccountController::class, 'encrypted'])->name('twofaccounts.encrypted');
     Route::get('twofaccounts/{twofaccount}/qrcode', [QrCodeController::class, 'show'])->name('twofaccounts.show.qrcode');
     Route::get('twofaccounts/count', [TwoFAccountController::class, 'count'])->name('twofaccounts.count');
@@ -142,16 +142,16 @@ Route::group(['middleware' => ['auth:api-guard', 'enforceMandatoryEncryption', '
     Route::delete('encryption/disable', [EncryptionController::class, 'disable'])->name('encryption.disable')->middleware('pat.scopes:write');
 
     // Backup routes
-    Route::post('backups/export', [\App\Http\Controllers\BackupController::class, 'export'])->name('backups.export');
+    Route::post('backups/export', [\App\Http\Controllers\BackupController::class, 'export'])->name('backups.export')->middleware('pat.scopes:read');
     Route::post('backups/import', [\App\Http\Controllers\BackupController::class, 'import'])->name('backups.import')->middleware('pat.scopes:write');
     Route::post('backups/metadata', [\App\Http\Controllers\BackupController::class, 'metadata'])->name('backups.metadata');
-    Route::get('backups/info', [\App\Http\Controllers\BackupController::class, 'info'])->name('backups.info');
+    Route::get('backups/info', [\App\Http\Controllers\BackupController::class, 'info'])->name('backups.info')->middleware('pat.scopes:read');
 
     // Legacy backup routes (backward compatibility)
-    Route::match(['get', 'post'], 'backup/export', [\App\Http\Controllers\BackupController::class, 'export'])->name('backup.export');
+    Route::match(['get', 'post'], 'backup/export', [\App\Http\Controllers\BackupController::class, 'export'])->name('backup.export')->middleware('pat.scopes:read');
     Route::post('backup/import', [\App\Http\Controllers\BackupController::class, 'import'])->name('backup.import')->middleware('pat.scopes:write');
     Route::post('backup/metadata', [\App\Http\Controllers\BackupController::class, 'metadata'])->name('backup.metadata');
-    Route::get('backup/info', [\App\Http\Controllers\BackupController::class, 'info'])->name('backup.info');
+    Route::get('backup/info', [\App\Http\Controllers\BackupController::class, 'info'])->name('backup.info')->middleware('pat.scopes:read');
 
     // Push notification subscription routes
     Route::post('push/subscribe', [\App\Http\Controllers\PushSubscriptionController::class, 'subscribe'])->name('push.subscribe')->middleware('pat.scopes:write');

@@ -186,36 +186,37 @@ class PWAService {
   }
 
   /**
-   * Get installation instructions for platform
+   * Get installation instructions for platform. Returns i18n KEY lists —
+   * the component translates them so the prompt follows the app language.
    */
   getInstallInstructions() {
     const userAgent = navigator.userAgent.toLowerCase();
-    
+
     if (/iphone|ipad|ipod/.test(userAgent)) {
       return {
         platform: 'ios',
-        steps: [
-          'Tap the Share button at the bottom of Safari',
-          'Scroll down and tap "Add to Home Screen"',
-          'Tap "Add" in the top right corner'
+        stepKeys: [
+          'pwa.install.ios.step1',
+          'pwa.install.ios.step2',
+          'pwa.install.ios.step3'
         ]
       };
     } else if (/android/.test(userAgent)) {
       return {
         platform: 'android',
-        steps: [
-          'Tap the menu button (three dots)',
-          'Tap "Add to Home screen" or "Install app"',
-          'Tap "Add" or "Install" to confirm'
+        stepKeys: [
+          'pwa.install.android.step1',
+          'pwa.install.android.step2',
+          'pwa.install.android.step3'
         ]
       };
     } else {
       return {
         platform: 'desktop',
-        steps: [
-          'Click the install icon in the address bar',
-          'Or open browser menu and select "Install 2FA-Vault"',
-          'Click "Install" to confirm'
+        stepKeys: [
+          'pwa.install.desktop.step1',
+          'pwa.install.desktop.step2',
+          'pwa.install.desktop.step3'
         ]
       };
     }

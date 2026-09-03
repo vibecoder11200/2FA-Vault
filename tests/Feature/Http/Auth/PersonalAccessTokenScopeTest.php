@@ -105,6 +105,32 @@ class PersonalAccessTokenScopeTest extends FeatureTestCase
     }
 
     #[Test]
+    public function test_otp_only_token_is_blocked_from_identity_and_export_routes()
+    {
+        // Follow-up tightening: identity (GET /user returns the email) and the
+        // data-export surfaces require the read scope — an otp-only PAT must
+        // not be able to read them through the group's read,otp OR-semantics.
+        $user = User::factory()->create();
+        $account = \App\Models\TwoFAccount::factory()->create(['user_id' => $user->id]);
+
+        Passport::actingAs($user, ['otp'], 'api-guard');
+
+        // otp path still allowed
+        $this->getJson('/api/v1/twofaccounts')->assertOk();
+        // identity + exports forbidden
+        $this->getJson('/api/v1/user')->assertForbidden();
+        $this->getJson('/api/v1/twofaccounts/export?ids=' . $account->id)->assertForbidden();
+        $this->postJson('/api/v1/backups/export')->assertForbidden();
+        $this->getJson('/api/v1/backups/info')->assertForbidden();
+
+        // A read token keeps full access to the same routes.
+        Passport::actingAs($user, ['read'], 'api-guard');
+        $this->getJson('/api/v1/user')->assertOk();
+        $this->getJson('/api/v1/twofaccounts/export?ids=' . $account->id)->assertOk();
+        $this->getJson('/api/v1/backups/info')->assertOk();
+    }
+
+    #[Test]
     public function test_scoped_token_without_admin_is_blocked_from_admin_route()
     {
         $admin = User::factory()->administrator()->create();

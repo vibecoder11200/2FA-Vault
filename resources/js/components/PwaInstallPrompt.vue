@@ -81,7 +81,11 @@ const handleInstallAvailable = () => {
     }
   }
 
-  instructions.value = pwaService.getInstallInstructions();
+  instructions.value = {
+    platform: pwaService.getInstallInstructions().platform,
+    // Translate the i18n keys here so the prompt follows the app language.
+    steps: pwaService.getInstallInstructions().stepKeys.map(key => t(key)),
+  };
   platform.value = instructions.value.platform;
   
   // Show prompt after a short delay
