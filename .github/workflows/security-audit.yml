@@ -1,0 +1,45 @@
+name: Security audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Weekly, Monday 06:00 UTC — catches newly published advisories between releases.
+    - cron: '0 6 * * 1'
+
+jobs:
+  composer-audit:
+    name: Composer audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Audit composer.lock
+        run: composer audit --no-interaction
+
+  npm-audit:
+    name: npm audit (production dependencies)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Audit package-lock.json
+        run: npm audit --omit=dev
