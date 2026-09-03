@@ -26,7 +26,9 @@ jobs:
           coverage: none
 
       - name: Audit composer.lock
-        run: composer audit --no-interaction
+        # --locked audits the committed lock file; without it composer
+        # requires an installed vendor/ tree, which this job never creates.
+        run: composer audit --locked --no-interaction
 
   npm-audit:
     name: npm audit (production dependencies)

@@ -533,6 +533,14 @@ class UserManagerControllerTest extends FeatureTestCase
         $path    = '/api/v1/users/' . $this->user->id . '/promote';
         $request = Request::create($path, 'PUT');
 
+        // The exact-JSON comparison below renders the human-readable
+        // created_at twice (API response, then the expected resource). Under
+        // a slow runner (coverage/Xdebug) the two renderings straddled the
+        // 1-second diff boundary ("0 seconds ago" vs "1 second ago"). Freeze
+        // the clock exactly one second after creation so both sides render
+        // the same string deterministically.
+        Carbon::setTestNow($this->user->created_at->copy()->addSecond());
+
         Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('PATCH', $path, [
