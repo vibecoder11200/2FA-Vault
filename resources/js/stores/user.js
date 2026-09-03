@@ -133,12 +133,15 @@ export const useUserStore = defineStore('user', {
                 })
                 .catch(error => {
                     // The logout request will receive a 401 response when the
-                    // backend has already detect inactivity on its side. In this case we
-                    // don't want any error to be displayed.
-                    if (error.response.status !== 401) {
+                    // backend has already detect inactivity on its side, or a
+                    // 410 from an older backend still serving GET logout. In
+                    // these cases we don't want any error to be displayed.
+                    if ([401, 410].includes(error.response?.status)) {
+                        this.tossOut()
+                    }
+                    else {
                         errorHandler.show(error)
                     }
-                    else this.tossOut()
                 })
             }
         },
@@ -183,10 +186,22 @@ export const useUserStore = defineStore('user', {
             let lang = this.$i18n.fallbackLocale
 
             if (isSupported) {
-                // The language tag pushed by the browser may be composed of
-                // multiple subtags (ex: fr-FR) so we keep only the
-                // "language subtag" (ex: fr)
-                lang = this.preferences.lang == 'browser' ? language.value.slice(0, 2)  : this.preferences.lang
+                if (this.preferences.lang == 'browser') {
+                    // E11: try the FULL browser tag first (zh-TW, pt-BR…) —
+                    // truncating to 2 chars mapped zh-TW→zh, pt-BR→pt, es-ES→es,
+                    // none of which exist as catalogs, silently forcing English.
+                    const full = (language.value || '').toLowerCase()
+                    const available = this.$i18n.global.availableLocales ?? []
+                    const sub = full.split('-')
+                    const regionMatch = sub[0] + (sub[1] ? '-' + sub[1].toUpperCase() : '')
+
+                    lang = available.includes(full)
+                        ? full
+                        : (available.includes(regionMatch) ? regionMatch : sub[0])
+                }
+                else {
+                    lang = this.preferences.lang
+                }
             }
 
             this.$i18n.global.locale = lang

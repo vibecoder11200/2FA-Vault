@@ -84,19 +84,26 @@ class TwoFASMigrator extends Migrator
         $twofaccounts = [];
 
         foreach ($json['services'] as $key => $otp_parameters) {
-            $parameters              = [];
-            $parameters['otp_type']  = $otp_parameters['otp']['tokenType'];
-            $parameters['service']   = $otp_parameters['name'];
-            $parameters['account']   = $otp_parameters['otp']['account'] ?? $parameters['service'];
-            $parameters['secret']    = $this->padToValidBase32Secret($otp_parameters['secret']);
-            $parameters['algorithm'] = $otp_parameters['otp']['algorithm'] ?? null;
-            $parameters['digits']    = $otp_parameters['otp']['digits'] ?? null;
-            $parameters['counter']   = strtolower($parameters['otp_type']) === 'hotp' && Arr::has($otp_parameters['otp'], 'counter')
-                ? $otp_parameters['otp']['counter']
-                : null;
-            $parameters['period'] = strtolower($parameters['otp_type']) === 'totp' && Arr::has($otp_parameters['otp'], 'period')
-                ? $otp_parameters['otp']['period']
-                : null;
+            $parameters = [];
+
+            // C9: key dereferences inside try/catch — one malformed item
+            // yields a clear indexed error instead of an unhandled PHP error.
+            try {
+                $parameters['otp_type']  = $otp_parameters['otp']['tokenType'];
+                $parameters['service']   = $otp_parameters['name'];
+                $parameters['account']   = $otp_parameters['otp']['account'] ?? $parameters['service'];
+                $parameters['secret']    = $this->padToValidBase32Secret($otp_parameters['secret']);
+                $parameters['algorithm'] = $otp_parameters['otp']['algorithm'] ?? null;
+                $parameters['digits']    = $otp_parameters['otp']['digits'] ?? null;
+                $parameters['counter']   = strtolower($parameters['otp_type']) === 'hotp' && Arr::has($otp_parameters['otp'], 'counter')
+                    ? $otp_parameters['otp']['counter']
+                    : null;
+                $parameters['period'] = strtolower($parameters['otp_type']) === 'totp' && Arr::has($otp_parameters['otp'], 'period')
+                    ? $otp_parameters['otp']['period']
+                    : null;
+            } catch (\Exception $exception) {
+                throw new InvalidMigrationDataException(sprintf('2FAS Auth (item #%s: missing required field)', $key));
+            }
 
             try {
                 $twofaccounts[$key] = new TwoFAccount;

@@ -40,6 +40,8 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\SetLanguage::class,
             \App\Http\Middleware\CustomCreateFreshApiToken::class,
             \App\Http\Middleware\AddContentSecurityPolicyHeaders::class,
+            \App\Http\Middleware\EnsureUserIsActive::class,
+            \App\Http\Middleware\EnsureSessionValid::class,
         ],
 
         'behind-auth' => [
@@ -54,6 +56,8 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\SetLanguage::class,
             \App\Http\Middleware\CustomCreateFreshApiToken::class,
             \App\Http\Middleware\AddContentSecurityPolicyHeaders::class,
+            \App\Http\Middleware\EnsureUserIsActive::class,
+            \App\Http\Middleware\EnsureSessionValid::class,
         ],
 
         'api.v1' => [
@@ -63,6 +67,8 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\LogUserLastSeen::class,
             \App\Http\Middleware\SetLanguage::class,
             \App\Http\Middleware\AddContentSecurityPolicyHeaders::class,
+            \App\Http\Middleware\EnsureUserIsActive::class,
+            \App\Http\Middleware\EnsureSessionValid::class,
         ],
     ];
 
@@ -84,6 +90,9 @@ class Kernel extends HttpKernel
         'RejectIfSsoOnlyAndNotForAdmin' => \App\Http\Middleware\RejectIfSsoOnlyAndNotForAdmin::class,
         'cache.headers'                 => \Illuminate\Http\Middleware\SetCacheHeaders::class,
         'kickOutInactiveUser'           => \App\Http\Middleware\KickOutInactiveUser::class,
+        'ensureUserIsActive'            => \App\Http\Middleware\EnsureUserIsActive::class,
+        'ensureSessionValid'            => \App\Http\Middleware\EnsureSessionValid::class,
+        'pat.scopes'                    => \App\Http\Middleware\EnsureTokenScope::class,
         'forceLogout'                   => \App\Http\Middleware\ForceLogout::class,
         'setLanguage'                   => \App\Http\Middleware\SetLanguage::class,
         // 'password.confirm' => \Illuminate\Auth\Middleware\RequirePassword::class,
@@ -101,6 +110,8 @@ class Kernel extends HttpKernel
         \Illuminate\Session\Middleware\StartSession::class,
         \Illuminate\View\Middleware\ShareErrorsFromSession::class,
         \App\Http\Middleware\Authenticate::class,
+        \App\Http\Middleware\EnsureUserIsActive::class,
+        \App\Http\Middleware\EnsureSessionValid::class,
         \App\Http\Middleware\SetLanguage::class,
         \Illuminate\Session\Middleware\AuthenticateSession::class,
         \Illuminate\Routing\Middleware\SubstituteBindings::class,

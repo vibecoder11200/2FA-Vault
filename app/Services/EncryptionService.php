@@ -154,14 +154,30 @@ class EncryptionService
     /**
      * Get count of encrypted accounts for a user
      *
+     * B10: also counts encrypted Secure Notes — disabling E2EE while notes
+     * carry user-key-encrypted content would orphan them permanently, so the
+     * disable guard must refuse in that case too.
+     *
      * @param User $user
      * @return int
      */
     public function getEncryptedAccountCount(User $user): int
     {
-        return TwoFAccount::where('user_id', $user->id)
+        $accounts = TwoFAccount::where('user_id', $user->id)
             ->where('encrypted', true)
             ->count();
+
+        // Secure notes carry no "encrypted" flag: under user E2EE the client
+        // stores the title/content as JSON crypto envelopes ({ciphertext,...}).
+        // Detect that shape server-side (the plaintext itself stays hidden).
+        $notes = \App\Models\SecureNote::where('user_id', $user->id)
+            ->where(function ($q) {
+                $q->where('title', 'like', '{"ciphertext"%')
+                    ->orWhere('content', 'like', '{"ciphertext"%');
+            })
+            ->count();
+
+        return $accounts + $notes;
     }
 
     /**

@@ -27,7 +27,7 @@ class InvitationTest extends TestCase
 
         $admin = User::factory()->administrator()->create();
 
-        Passport::actingAs($admin, [], 'api-guard');
+        Passport::actingAs($admin, ['legacy_full_access'], 'api-guard');
         $response = $this->postJson('/api/v1/user/invitations', [
             'email' => 'invitee@synthetic.example',
             'role'  => 'user',
@@ -49,7 +49,7 @@ class InvitationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->postJson('/api/v1/user/invitations', [
             'email' => 'invitee@synthetic.example',
         ]);
@@ -66,7 +66,7 @@ class InvitationTest extends TestCase
         UserInvitation::factory()->accepted()->create();
         UserInvitation::factory()->expired()->create();
 
-        Passport::actingAs($admin, [], 'api-guard');
+        Passport::actingAs($admin, ['legacy_full_access'], 'api-guard');
         $response = $this->getJson('/api/v1/user/invitations');
 
         // Non-paginated resource collection → a bare JSON array of pending invitations.
@@ -80,7 +80,7 @@ class InvitationTest extends TestCase
         $admin      = User::factory()->administrator()->create();
         $invitation = UserInvitation::factory()->create();
 
-        Passport::actingAs($admin, [], 'api-guard');
+        Passport::actingAs($admin, ['legacy_full_access'], 'api-guard');
         $response = $this->deleteJson('/api/v1/user/invitations/' . $invitation->id);
 
         $response->assertStatus(204);
@@ -94,7 +94,7 @@ class InvitationTest extends TestCase
         $admin    = User::factory()->administrator()->create();
         $existing = User::factory()->create();
 
-        Passport::actingAs($admin, [], 'api-guard');
+        Passport::actingAs($admin, ['legacy_full_access'], 'api-guard');
         $response = $this->postJson('/api/v1/user/invitations', [
             'email' => $existing->email,
         ]);

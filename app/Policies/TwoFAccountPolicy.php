@@ -35,9 +35,17 @@ class TwoFAccountPolicy
         }
 
         // A recipient of a shared account (member_id match) can also view
-        // and generate OTPs for the shared account.
+        // and generate OTPs for the shared account — but ONLY while they are
+        // still an active member of the sharing team (B3 belt-and-braces:
+        // member removal also deletes the shared_accounts rows, this guard
+        // covers any row that survives out-of-band).
         $can = SharedAccount::where('twofaccount_id', $twofaccount->id)
             ->where('member_id', $user->id)
+            ->whereHas('team', function ($q) use ($user) {
+                $q->whereHas('users', function ($sq) use ($user) {
+                    $sq->where('users.id', $user->id);
+                });
+            })
             ->exists();
 
         if (! $can) {
@@ -132,6 +140,13 @@ class TwoFAccountPolicy
      */
     public function update(User $user, TwoFAccount $twofaccount)
     {
+        // B12 semantics: shared-account recipients never get an update path —
+        // even access_level=write shares can only read/generate OTP. Under
+        // E2EE the server cannot re-wrap the secret for members, so allowing
+        // member edits would desynchronize wrapped keys (see RT7: secret
+        // changes revoke shares instead). If a member metadata-mutation path
+        // is ever added, it MUST check SharedAccount.access_level == 'write'
+        // here and forbid secret changes.
         $can = $this->isOwnerOf($user, $twofaccount);
 
         if (! $can) {

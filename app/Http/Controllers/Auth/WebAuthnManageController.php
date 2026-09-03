@@ -34,6 +34,12 @@ class WebAuthnManageController extends Controller
      */
     public function rename(WebauthnRenameRequest $request, string $credential)
     {
+        // Same SSO-only gate as index() and delete() so the rename path
+        // cannot be used to bypass it (A7).
+        if (Gate::denies('manage-webauthn-credentials')) {
+            throw new AccessDeniedHttpException(__('error.unsupported_with_sso_only'));
+        }
+
         $validated = $request->validated();
 
         abort_if(! $request->user()->renameCredential($credential, $validated['name']), 404);

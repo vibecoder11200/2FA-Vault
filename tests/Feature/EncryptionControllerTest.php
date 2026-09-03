@@ -30,7 +30,7 @@ class EncryptionControllerTest extends TestCase
      */
     public function test_user_can_setup_encryption() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/setup', [
                 'encryption_salt'       => 'test_salt_base64_encoded',
@@ -71,7 +71,7 @@ class EncryptionControllerTest extends TestCase
      */
     public function test_encryption_setup_validates_fields() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/setup', [
                 // Missing required fields
@@ -93,7 +93,7 @@ class EncryptionControllerTest extends TestCase
         $this->user->save();
 
         // Try to setup again
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/setup', [
                 'encryption_salt'       => 'new_salt',
@@ -120,7 +120,7 @@ class EncryptionControllerTest extends TestCase
         $this->user->vault_locked          = false;
         $this->user->save();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/encryption/info');
 
@@ -139,7 +139,7 @@ class EncryptionControllerTest extends TestCase
      */
     public function test_encryption_info_returns_false_when_not_enabled() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/encryption/info');
 
@@ -162,7 +162,7 @@ class EncryptionControllerTest extends TestCase
         $this->user->vault_locked          = false;
         $this->user->save();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/lock');
 
@@ -180,7 +180,7 @@ class EncryptionControllerTest extends TestCase
      */
     public function test_locking_requires_encryption_enabled() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/lock');
 
@@ -200,7 +200,7 @@ class EncryptionControllerTest extends TestCase
         $this->user->save();
 
         // Test successful verification
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/verify', [
                 'verification_result' => true,
@@ -227,7 +227,7 @@ class EncryptionControllerTest extends TestCase
         $this->user->vault_locked          = true;
         $this->user->save();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/verify', [
                 'verification_result' => false,
@@ -249,7 +249,7 @@ class EncryptionControllerTest extends TestCase
 
         // Make multiple requests quickly
         for ($i = 0; $i < 5; $i++) {
-            Passport::actingAs($this->user, [], 'api-guard');
+            Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
             $response = $this
                 ->postJson('/api/v1/encryption/setup', [
                     'encryption_salt'       => 'test_salt',
@@ -273,7 +273,7 @@ class EncryptionControllerTest extends TestCase
         $this->user->encryption_version    = 1;
         $this->user->save();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/encryption/salt');
 
@@ -297,7 +297,7 @@ class EncryptionControllerTest extends TestCase
         $this->user->save();
 
         // Unlock (verification succeeds)
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/verify', [
                 'verification_result' => true,
@@ -308,7 +308,7 @@ class EncryptionControllerTest extends TestCase
         $this->assertFalse($this->user->vault_locked);
 
         // Lock again
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/lock');
 
@@ -323,7 +323,7 @@ class EncryptionControllerTest extends TestCase
     public function test_vault_operations_require_encryption_enabled() : void
     {
         // Try to get info without encryption
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/encryption/info');
 
@@ -331,14 +331,14 @@ class EncryptionControllerTest extends TestCase
             ->assertJson(['encryption_enabled' => false]);
 
         // Try to lock without encryption
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/lock');
 
         $response->assertStatus(400);
 
         // Try to verify without encryption
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/verify', [
                 'verification_result' => true,
@@ -352,7 +352,7 @@ class EncryptionControllerTest extends TestCase
      */
     public function test_encryption_setup_validates_salt_format() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/setup', [
                 'encryption_salt'       => '', // Empty salt
@@ -375,7 +375,7 @@ class EncryptionControllerTest extends TestCase
         // JSON format validation is done client-side
         $this->markTestSkipped('JSON validation happens client-side, server only validates string type');
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/setup', [
                 'encryption_salt'       => 'test_salt',
@@ -400,7 +400,7 @@ class EncryptionControllerTest extends TestCase
         $this->user->save();
 
         // Another user cannot see first user's encryption info
-        Passport::actingAs($anotherUser, [], 'api-guard');
+        Passport::actingAs($anotherUser, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/encryption/info');
 
@@ -423,13 +423,13 @@ class EncryptionControllerTest extends TestCase
         $this->user->save();
 
         // First request sees vault locked
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/encryption/info');
         $this->assertTrue($response->json('vault_locked'));
 
         // Second request (different connection) still sees vault locked
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/encryption/info');
         $this->assertTrue($response->json('vault_locked'));
@@ -447,7 +447,7 @@ class EncryptionControllerTest extends TestCase
         $this->user->vault_locked          = true;
         $this->user->save();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/encryption/verify', [
                 // Missing verification_result parameter

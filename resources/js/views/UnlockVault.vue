@@ -151,7 +151,7 @@
                     <div class="field">
                         <label class="checkbox">
                             <input v-model="unlockForm.showPassword" type="checkbox" />
-                            Show password
+                            {{ $t('label.show_password') }}
                         </label>
                     </div>
 
@@ -177,7 +177,7 @@
 
                 <div class="nav-links mt-4">
                     <p>
-                        <a class="is-link" @click="handleLogout">Logout</a>
+                        <a class="is-link" @click="handleLogout">{{ $t('label.logout') }}</a>
                     </p>
                 </div>
 

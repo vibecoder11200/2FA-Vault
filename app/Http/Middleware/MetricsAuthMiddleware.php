@@ -10,8 +10,6 @@ class MetricsAuthMiddleware
     /**
      * Handle an incoming request.
      *
-     * @param  Request  $request
-     * @param  Closure  $next
      * @return mixed
      */
     public function handle(Request $request, Closure $next)
@@ -27,8 +25,8 @@ class MetricsAuthMiddleware
             return $next($request);
         }
 
-        // Check Bearer token
-        if ($metricsToken && $request->bearerToken() === $metricsToken) {
+        // Check Bearer token (timing-safe comparison, A11)
+        if ($metricsToken && $request->bearerToken() !== null && hash_equals($metricsToken, $request->bearerToken())) {
             return $next($request);
         }
 

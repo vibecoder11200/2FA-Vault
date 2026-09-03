@@ -285,6 +285,34 @@ To change master password:
 - Should be done over trusted network (not public Wi-Fi)
 - Consider implementing secure rotation in future version
 
+### Session Driver & Session Revocation
+
+- `.env.example` now ships `SESSION_DRIVER=database` so the "revoke session"
+  feature can actually evict server-side session rows (the `sessions` table,
+  migration `2024_09_12_151037`). With the `file` driver, revocation is
+  bookkeeping-only — the `EnsureSessionValid` middleware safely no-ops there.
+- The `EnsureSessionValid` middleware rejects cookie-session requests whose
+  underlying `sessions` row was deleted (revoked via the session manager or a
+  password change/reset). Bearer/PAT requests pass through untouched.
+- `user_sessions.token_id` stores the Laravel session id for web-guard rows
+  and the Passport token id for PAT rows.
+
+### Personal Access Token Scopes
+
+- Passport defines four scopes: `read`, `otp`, `write`, `admin`
+  (`AppServiceProvider::boot`). New PATs default to a 90-day expiry and MUST
+  request at least one valid scope — creating a PAT with omitted/empty scopes
+  returns 422 (`PersonalAccessTokenController::store`).
+- Route-level enforcement uses the `pat.scopes:<scopes>` middleware across
+  `/api/v1` (read routes accept `read|otp`; destructive routes — deletes,
+  preference rewrites — require `write`; admin routes require `admin`).
+- **Legacy marker**: PATs created before scopes existed were stamped by the
+  one-time migration `2026_09_02_000001_stamp_legacy_pat_full_access_scopes`
+  with the explicit `legacy_full_access` marker, which grants full access.
+  Only that marker is grandfathered — a plain empty scope set has no access
+  (this prevents forging new "legacy" tokens, since Passport defaults omitted
+  scopes to `[]`).
+
 ### Backup Password Handling
 
 **Separation of Concerns:**
@@ -723,6 +751,32 @@ Currently, we do not offer a bug bounty program. However, we deeply appreciate s
 - [ ] Penetration testing (Recommended: Annual)
 
 ## 🔄 Security Changelog
+
+### v1.3.1 (2026-09) - Auth/session/credential hardening (Phase 2)
+- ✅ PAT scopes (`read`/`otp`/`write`/`admin`) + 90-day default expiry, with
+  the `legacy_full_access` marker grandfathering pre-cutover tokens (see
+  "Personal Access Token Scopes" above).
+- ✅ `SESSION_DRIVER=database` default in `.env.example` + real session-row
+  eviction on revocation and password change/reset
+  (`CredentialRevocationService`).
+- ✅ Deactivated users (admin action) are rejected on API and web requests
+  and cannot log back in (`EnsureUserIsActive`).
+- ✅ Session id regeneration on every authentication path (password,
+  WebAuthn, registration, Socialite, recovery).
+- ✅ Logout is now POST + CSRF; the legacy GET route answers 410 Gone.
+- ✅ New throttles: PAT CRUD 10/min, WebAuthn register 10/min,
+  `PATCH /user/password` 5/min, `PUT/PATCH /user*` 5/min keyed by user,
+  `GET /refresh-csrf` 30/min, metrics endpoint 10/min with timing-safe
+  (`hash_equals`) bearer-token comparison; `/api/v1` limiter keys by user id
+  when authenticated (IP fallback). `THROTTLE_API=0` still works but logs a
+  boot warning.
+- ✅ `.env.example` sets `SESSION_SECURE_COOKIE=true` (comment out for
+  plain-HTTP LAN self-hosting).
+- ✅ WebAuthn login options return a 200-shaped generic error for unknown
+  emails (enumeration oracle closed); password login/forgot keep their
+  exists-rules (throttled, upstream UX parity — documented tradeoff).
+- ✅ SSO-only email lookup returns identical responses for admin vs
+  non-admin emails (no admin enumeration).
 
 ### v1.3.0 (2026-08) - Hardening sweep
 - ✅ Tightened the default CORS policy: code fallback and `.env.example` no

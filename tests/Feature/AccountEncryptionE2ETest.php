@@ -50,7 +50,7 @@ class AccountEncryptionE2ETest extends TestCase
             'authTag'    => base64_encode(random_bytes(16)),
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/twofaccounts', [
                 'service'   => 'GitHub',
@@ -85,7 +85,7 @@ class AccountEncryptionE2ETest extends TestCase
             'authTag'    => base64_encode(random_bytes(16)),
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $createResponse = $this
             ->postJson('/api/v1/twofaccounts', [
                 'service'   => 'GitHub',
@@ -106,7 +106,7 @@ class AccountEncryptionE2ETest extends TestCase
         $this->assertSame($encryptedSecret, $account->secret);
         $this->assertStringNotContainsString('client_encrypted_totp_secret', $account->secret);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $fetchResponse = $this
             ->getJson("/api/v1/twofaccounts/{$account->id}");
 
@@ -141,7 +141,7 @@ class AccountEncryptionE2ETest extends TestCase
             'authTag'    => base64_encode('new_tag'),
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->putJson("/api/v1/twofaccounts/{$account->id}", [
                 'service'   => 'GitHub',
@@ -182,7 +182,7 @@ class AccountEncryptionE2ETest extends TestCase
             ]),
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->deleteJson("/api/v1/twofaccounts/{$account->id}");
 
@@ -222,7 +222,7 @@ class AccountEncryptionE2ETest extends TestCase
             ]),
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/twofaccounts');
 
@@ -278,18 +278,63 @@ class AccountEncryptionE2ETest extends TestCase
             'authTag'    => base64_encode('new_tag'),
         ]);
 
-        // Update encryption credentials
-        Passport::actingAs($this->user, [], 'api-guard');
+        // Step 1 (B5): rotate the credentials
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->postJson('/api/v1/encryption/credentials', [
                 'encryption_salt'       => $newSalt,
                 'encryption_test_value' => $newTestValue,
             ])
-            ->assertStatus(405); // This endpoint doesn't exist yet
+            ->assertStatus(200);
 
-        // For now, verify the user's salt was updated
+        // The new salt and test value are now stored
         $this->user->refresh();
-        $this->assertEquals('old_salt', $this->user->encryption_salt);
+        $this->assertEquals('new_salt', $this->user->encryption_salt);
+        $this->assertEquals($newTestValue, $this->user->encryption_test_value);
+
+        // Step 2 (B5): submit the secrets re-encrypted under the new key
+        $response = $this
+            ->postJson('/api/v1/encryption/bulk-secrets', [
+                'accounts' => [
+                    [
+                        'id'     => $account1->id,
+                        'secret' => json_encode([
+                            'ciphertext' => base64_encode('secret1_new_key'),
+                            'iv'         => base64_encode('iv1_new'),
+                            'authTag'    => base64_encode('tag1_new'),
+                        ]),
+                    ],
+                    [
+                        'id'     => $account2->id,
+                        'secret' => json_encode([
+                            'ciphertext' => base64_encode('secret2_new_key'),
+                            'iv'         => base64_encode('iv2_new'),
+                            'authTag'    => base64_encode('tag2_new'),
+                        ]),
+                    ],
+                ],
+            ])
+            ->assertStatus(200)
+            ->assertJsonFragment(['updated' => 2, 'failed' => 0]);
+
+        // Rotation round-trip: the stored ciphertexts now decrypt only under
+        // the NEW key (old key no longer matches the stored salt/test value).
+        $this->assertDatabaseHas('twofaccounts', [
+            'id'     => $account1->id,
+            'secret' => json_encode([
+                'ciphertext' => base64_encode('secret1_new_key'),
+                'iv'         => base64_encode('iv1_new'),
+                'authTag'    => base64_encode('tag1_new'),
+            ]),
+        ]);
+        $this->assertDatabaseHas('twofaccounts', [
+            'id'     => $account2->id,
+            'secret' => json_encode([
+                'ciphertext' => base64_encode('secret2_new_key'),
+                'iv'         => base64_encode('iv2_new'),
+                'authTag'    => base64_encode('tag2_new'),
+            ]),
+        ]);
     }
 
     /**
@@ -311,7 +356,7 @@ class AccountEncryptionE2ETest extends TestCase
 
         // This should still work as we don't validate on create
         // (validation happens client-side before sending)
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/twofaccounts', [
                 'service'   => 'Test',
@@ -354,7 +399,7 @@ class AccountEncryptionE2ETest extends TestCase
             ]),
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/twofaccounts');
 
@@ -399,7 +444,7 @@ class AccountEncryptionE2ETest extends TestCase
 
         // Batch update endpoint would need to be added
         // For now, we verify individual updates work
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->putJson("/api/v1/twofaccounts/{$account1->id}", [
                 'service'   => $account1->service,
@@ -439,7 +484,7 @@ class AccountEncryptionE2ETest extends TestCase
             ]),
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/twofaccounts/export?ids=' . $account->id);
 
@@ -463,7 +508,7 @@ class AccountEncryptionE2ETest extends TestCase
         // Create a migration payload with encrypted secret
         $migrationPayload = 'otpauth-migration://offline?data=CHMCIhIWEAIYAQASCBSelfk'; // Example
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/twofaccounts/migration', [
                 'payload' => $migrationPayload,
@@ -501,7 +546,7 @@ class AccountEncryptionE2ETest extends TestCase
         ]);
 
         // Assign to group
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson("/api/v1/groups/{$group->id}/assign", [
                 'ids' => [$account->id],
@@ -536,7 +581,7 @@ class AccountEncryptionE2ETest extends TestCase
         ]);
 
         // Withdraw from group
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->patchJson('/api/v1/twofaccounts/withdraw', [
                 'ids' => (string) $account->id,

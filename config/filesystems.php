@@ -79,7 +79,9 @@ return [
         'backups' => [
             'driver' => 'local',
             'root' => storage_path('app/backups'),
-            'throw' => false,
+            // A failed write must surface as an error instead of a silent
+            // "successful" export with no file on disk (audit C5).
+            'throw' => true,
         ],
 
         'public' => [

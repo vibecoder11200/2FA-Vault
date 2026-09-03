@@ -33,6 +33,13 @@
     const conflictResolution = ref('skip')
     const importGroups = ref(true)
 
+    // Import result state (warnings + one-click cleanup of undecryptable
+    // just-imported accounts, C3)
+    const legacyFormatWarning = ref(false)
+    const keyMismatchWarning = ref(false)
+    const undecryptableAccountIds = ref([])
+    const isDeletingImported = ref(false)
+
     const backupInfo = computed(() => backup.info)
     const encryptionStatus = ref(null)
     const encryptionEnabled = computed(() => {
@@ -107,7 +114,10 @@
             const metadata = await backup.getBackupMetadata(file)
             backupMetadata.value = metadata
         } catch {
+            // Invalid/unreadable file: stay on the page, tell the user in
+            // place and let the server-side confirm reject the import.
             backupMetadata.value = null
+            notify.alert({ text: t('error.invalid_backup_file') })
         } finally {
             isPreviewing.value = false
             showImportDialog.value = true
@@ -122,6 +132,8 @@
 
         isImporting.value = true
         try {
+            // Format 2 files are decrypted client-side before upload (the
+            // password never leaves the browser); legacy files upload as-is.
             const result = await backup.importBackup(
                 backupFile.value,
                 importPassword.value,
@@ -135,6 +147,12 @@
                 })
             })
 
+            legacyFormatWarning.value = result.legacy_format_warning === true
+            keyMismatchWarning.value = result.key_mismatch_warning === true
+            undecryptableAccountIds.value = keyMismatchWarning.value
+                ? (result.imported_account_ids || [])
+                : []
+
             showImportDialog.value = false
             importPassword.value = ''
             backupFile.value = null
@@ -143,12 +161,41 @@
         } catch (error) {
             if (error.response?.status === 422 || error.response?.status === 400) {
                 notify.alert({ text: error.response.data.message })
+            } else if (error.response === undefined && error instanceof Error && error.message) {
+                // Client-side failures (e.g. wrong v2 password): tell the user
+                // in place instead of bouncing to the global error page.
+                notify.alert({ text: error.message })
             } else {
                 errorHandler.show(error)
             }
         } finally {
             isImporting.value = false
         }
+    }
+
+    /**
+     * One-click delete of just-imported undecryptable accounts (C3)
+     */
+    async function deleteImportedAccounts() {
+        if (undecryptableAccountIds.value.length === 0) return
+
+        isDeletingImported.value = true
+        try {
+            await backup.deleteImportedAccounts(undecryptableAccountIds.value)
+            notify.success({ text: t('notification.accounts_deleted') })
+            undecryptableAccountIds.value = []
+            keyMismatchWarning.value = false
+        } catch (error) {
+            errorHandler.show(error)
+        } finally {
+            isDeletingImported.value = false
+        }
+    }
+
+    function dismissImportWarnings() {
+        legacyFormatWarning.value = false
+        keyMismatchWarning.value = false
+        undecryptableAccountIds.value = []
     }
 
     function cancelExport() {
@@ -257,6 +304,31 @@
                             <span class="loader"></span>
                             <p class="mt-2">{{ $t('settings.backup.previewing') }}</p>
                         </div>
+
+                        <!-- Post-import warnings (C3 / RT4) -->
+                        <div v-if="legacyFormatWarning" class="notification is-warning is-light mt-3">
+                            {{ $t('settings.backup.warning_legacy_format') }}
+                            <p class="mt-2">
+                                <button type="button" class="button is-small" @click="dismissImportWarnings">
+                                    {{ $t('label.close') }}
+                                </button>
+                            </p>
+                        </div>
+
+                        <div v-if="keyMismatchWarning" class="notification is-warning is-light mt-3">
+                            {{ $t('settings.backup.warning_key_mismatch') }}
+                            <p class="mt-2">
+                                <button
+                                    type="button"
+                                    class="button is-small is-danger"
+                                    :class="{ 'is-loading': isDeletingImported }"
+                                    :disabled="isDeletingImported || undecryptableAccountIds.length === 0"
+                                    @click="deleteImportedAccounts"
+                                >
+                                    {{ $t('settings.backup.delete_imported') }}
+                                </button>
+                            </p>
+                        </div>
                     </div>
                 </form>
             </FormWrapper>
@@ -309,7 +381,10 @@
                             <p class="has-text-weight-semibold mb-2">{{ $t('settings.backup.preview_title') }}</p>
                             <ul>
                                 <li>{{ $t('settings.backup.preview_format') }}: <strong>{{ backupMetadata.format || 'unknown' }}</strong></li>
-                                <li>{{ $t('settings.backup.preview_accounts') }}: <strong>{{ backupMetadata.account_count || 0 }}</strong></li>
+                                <li v-if="backupMetadata.requires_decryption" class="has-text-weight-semibold">
+                                    {{ $t('settings.backup.preview_requires_decryption') }}
+                                </li>
+                                <li v-else>{{ $t('settings.backup.preview_accounts') }}: <strong>{{ backupMetadata.account_count || 0 }}</strong></li>
                                 <li v-if="backupMetadata.group_count">
                                     {{ $t('settings.backup.preview_groups') }}: <strong>{{ backupMetadata.group_count }}</strong>
                                 </li>

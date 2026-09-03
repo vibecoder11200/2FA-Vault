@@ -37,7 +37,7 @@ class EmergencyAccessControllerTest extends TestCase
             'status'   => 'active',
         ]);
 
-        Passport::actingAs($owner, [], 'api-guard');
+        Passport::actingAs($owner, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/emergency-contacts');
 
@@ -50,7 +50,7 @@ class EmergencyAccessControllerTest extends TestCase
         $owner   = $this->createEncryptedUser();
         $trusted = $this->createEncryptedUser(['email' => 'trusted@example.com']);
 
-        Passport::actingAs($owner, [], 'api-guard');
+        Passport::actingAs($owner, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/emergency-contacts', [
                 'email'       => 'trusted@example.com',
@@ -84,7 +84,7 @@ class EmergencyAccessControllerTest extends TestCase
             ]);
         }
 
-        Passport::actingAs($owner, [], 'api-guard');
+        Passport::actingAs($owner, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/emergency-contacts', [
                 'email'       => 'sixth@example.com',
@@ -103,7 +103,7 @@ class EmergencyAccessControllerTest extends TestCase
             'status'   => 'confirmed',
         ]);
 
-        Passport::actingAs($owner, [], 'api-guard');
+        Passport::actingAs($owner, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->deleteJson("/api/v1/emergency-contacts/{$contact->id}");
 
@@ -126,7 +126,7 @@ class EmergencyAccessControllerTest extends TestCase
             'status'          => 'confirmed',
         ]);
 
-        Passport::actingAs($grantee, [], 'api-guard');
+        Passport::actingAs($grantee, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson("/api/v1/emergency-contacts/{$contact->id}/request");
 
@@ -150,7 +150,7 @@ class EmergencyAccessControllerTest extends TestCase
             'status'     => 'pending',
         ]);
 
-        Passport::actingAs($owner, [], 'api-guard');
+        Passport::actingAs($owner, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson("/api/v1/emergency-requests/{$request->id}/approve", [
                 'encrypted_key' => 'aes-256-gcm-key-data',
@@ -182,7 +182,7 @@ class EmergencyAccessControllerTest extends TestCase
             'status'     => 'pending',
         ]);
 
-        Passport::actingAs($owner, [], 'api-guard');
+        Passport::actingAs($owner, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson("/api/v1/emergency-requests/{$request->id}/deny");
 
@@ -211,7 +211,7 @@ class EmergencyAccessControllerTest extends TestCase
             'status'     => 'approved',
         ]);
 
-        Passport::actingAs($owner, [], 'api-guard');
+        Passport::actingAs($owner, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/emergency-requests/pending');
 
@@ -241,7 +241,7 @@ class EmergencyAccessControllerTest extends TestCase
             'status'          => 'revoked',
         ]);
 
-        Passport::actingAs($grantee, [], 'api-guard');
+        Passport::actingAs($grantee, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/emergency-contacts/for-me');
 
@@ -254,5 +254,292 @@ class EmergencyAccessControllerTest extends TestCase
         $response = $this->getJson('/api/v1/emergency-contacts');
 
         $response->assertStatus(401);
+    }
+
+    // ── F1 / RT3: end-to-end emergency access ─────────────────────────────
+
+    protected function granteePublicKey() : string
+    {
+        // A fake but structurally valid base64 SPKI blob; only the
+        // fingerprint consistency matters for these tests.
+        return base64_encode(random_bytes(128));
+    }
+
+    public function test_designation_stores_encrypted_key_and_fingerprint() : void
+    {
+        $owner   = $this->createEncryptedUser();
+        $grantee = $this->createEncryptedUser(['public_key' => $publicKey = $this->granteePublicKey()]);
+
+        $fingerprint = \App\Services\EmergencyAccessService::publicKeyFingerprint($publicKey);
+
+        Passport::actingAs($owner, ['legacy_full_access'], 'api-guard');
+        $response = $this
+            ->postJson('/api/v1/emergency-contacts', [
+                'email'                          => $grantee->email,
+                'wait_days'                      => 30,
+                'access_type'                    => 'view_only',
+                'encrypted_key'                  => 'wrapped-vault-key',
+                'grantee_public_key_fingerprint' => $fingerprint,
+            ]);
+
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('emergency_contacts', [
+            'owner_id'                       => $owner->id,
+            'trusted_user_id'                => $grantee->id,
+            'encrypted_key'                  => 'wrapped-vault-key',
+            'grantee_public_key_fingerprint' => $fingerprint,
+        ]);
+    }
+
+    public function test_designation_rejects_mismatched_fingerprint() : void
+    {
+        $owner   = $this->createEncryptedUser();
+        $grantee = $this->createEncryptedUser(['public_key' => $this->granteePublicKey()]);
+
+        Passport::actingAs($owner, ['legacy_full_access'], 'api-guard');
+        $response = $this
+            ->postJson('/api/v1/emergency-contacts', [
+                'email'                          => $grantee->email,
+                'wait_days'                      => 30,
+                'access_type'                    => 'view_only',
+                'encrypted_key'                  => 'wrapped-vault-key',
+                'grantee_public_key_fingerprint' => str_repeat('a', 64),
+            ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_grantee_key_info_lookup() : void
+    {
+        $owner   = $this->createEncryptedUser();
+        $grantee = $this->createEncryptedUser(['public_key' => $publicKey = $this->granteePublicKey()]);
+
+        Passport::actingAs($owner, ['legacy_full_access'], 'api-guard');
+
+        $this->getJson('/api/v1/emergency-contacts/grantee-key-info?email=' . $grantee->email)
+            ->assertStatus(200)
+            ->assertJsonFragment([
+                'user_id'     => $grantee->id,
+                'public_key'  => $publicKey,
+                'fingerprint' => \App\Services\EmergencyAccessService::publicKeyFingerprint($publicKey),
+            ]);
+
+        $this->getJson('/api/v1/emergency-contacts/grantee-key-info?email=unknown@example.com')
+            ->assertStatus(404);
+    }
+
+    public function test_grantee_can_read_vault_data_after_access_granted() : void
+    {
+        $owner   = $this->createEncryptedUser();
+        $grantee = $this->createEncryptedUser(['public_key' => $publicKey = $this->granteePublicKey()]);
+
+        $account = \App\Models\TwoFAccount::factory()->create([
+            'user_id'   => $owner->id,
+            'encrypted' => true,
+            'secret'    => json_encode(['ciphertext' => base64_encode('c'), 'iv' => base64_encode('i'), 'authTag' => base64_encode('t')]),
+        ]);
+
+        $contact = EmergencyContact::factory()->create([
+            'owner_id'                       => $owner->id,
+            'trusted_user_id'                => $grantee->id,
+            'status'                         => 'active',
+            'encrypted_key'                  => 'wrapped-vault-key',
+            'grantee_public_key_fingerprint' => \App\Services\EmergencyAccessService::publicKeyFingerprint($publicKey),
+            'granted_at'                     => now(),
+        ]);
+
+        Passport::actingAs($grantee, ['legacy_full_access'], 'api-guard');
+        $response = $this
+            ->getJson("/api/v1/emergency-contacts/{$contact->id}/vault-data");
+
+        $response->assertStatus(200)
+            ->assertJsonFragment([
+                'encrypted_key' => 'wrapped-vault-key',
+                'access_type'   => $contact->access_type,
+            ])
+            ->assertJsonFragment([
+                'id'      => $account->id,
+                'service' => $account->service,
+            ]);
+    }
+
+    public function test_vault_data_fails_closed_when_grantee_key_rotated() : void
+    {
+        $owner   = $this->createEncryptedUser();
+        $grantee = $this->createEncryptedUser(['public_key' => $this->granteePublicKey()]);
+
+        $contact = EmergencyContact::factory()->create([
+            'owner_id'                       => $owner->id,
+            'trusted_user_id'                => $grantee->id,
+            'status'                         => 'active',
+            'encrypted_key'                  => 'wrapped-vault-key',
+            'grantee_public_key_fingerprint' => str_repeat('b', 64), // stale
+            'granted_at'                     => now(),
+        ]);
+
+        Passport::actingAs($grantee, ['legacy_full_access'], 'api-guard');
+        $response = $this
+            ->getJson("/api/v1/emergency-contacts/{$contact->id}/vault-data");
+
+        $response->assertStatus(409)
+            ->assertJsonFragment(['error' => 'emergency_key_unavailable']);
+    }
+
+    public function test_vault_data_fails_closed_for_stale_active_row_without_key() : void
+    {
+        $owner   = $this->createEncryptedUser();
+        $grantee = $this->createEncryptedUser();
+
+        // Pre-F1 shape: auto-grant flipped the status but no key was stored.
+        $contact = EmergencyContact::factory()->create([
+            'owner_id'        => $owner->id,
+            'trusted_user_id' => $grantee->id,
+            'status'          => 'active',
+            'encrypted_key'   => null,
+            'granted_at'      => now(),
+        ]);
+
+        Passport::actingAs($grantee, ['legacy_full_access'], 'api-guard');
+        $response = $this
+            ->getJson("/api/v1/emergency-contacts/{$contact->id}/vault-data");
+
+        $response->assertStatus(409)
+            ->assertJsonFragment(['error' => 'emergency_key_unavailable']);
+    }
+
+    public function test_non_grantee_cannot_read_vault_data() : void
+    {
+        $owner    = $this->createEncryptedUser();
+        $grantee  = $this->createEncryptedUser(['public_key' => $publicKey = $this->granteePublicKey()]);
+        $stranger = $this->createEncryptedUser();
+
+        $contact = EmergencyContact::factory()->create([
+            'owner_id'                       => $owner->id,
+            'trusted_user_id'                => $grantee->id,
+            'status'                         => 'active',
+            'encrypted_key'                  => 'wrapped-vault-key',
+            'grantee_public_key_fingerprint' => \App\Services\EmergencyAccessService::publicKeyFingerprint($publicKey),
+        ]);
+
+        Passport::actingAs($stranger, ['legacy_full_access'], 'api-guard');
+        $this
+            ->getJson("/api/v1/emergency-contacts/{$contact->id}/vault-data")
+            ->assertStatus(403);
+    }
+
+    public function test_vault_data_requires_active_status() : void
+    {
+        $owner   = $this->createEncryptedUser();
+        $grantee = $this->createEncryptedUser();
+
+        $contact = EmergencyContact::factory()->create([
+            'owner_id'        => $owner->id,
+            'trusted_user_id' => $grantee->id,
+            'status'          => 'confirmed',
+        ]);
+
+        Passport::actingAs($grantee, ['legacy_full_access'], 'api-guard');
+        $this
+            ->getJson("/api/v1/emergency-contacts/{$contact->id}/vault-data")
+            ->assertStatus(409);
+    }
+
+    public function test_contacts_for_me_exposes_encrypted_key_only_when_active() : void
+    {
+        $owner   = $this->createEncryptedUser();
+        $grantee = $this->createEncryptedUser();
+
+        $activeContact = EmergencyContact::factory()->create([
+            'owner_id'        => $owner->id,
+            'trusted_user_id' => $grantee->id,
+            'status'          => 'active',
+            'encrypted_key'   => 'wrapped-vault-key',
+        ]);
+        $confirmedContact = EmergencyContact::factory()->create([
+            'owner_id'        => $owner->id,
+            'trusted_user_id' => $grantee->id,
+            'status'          => 'confirmed',
+            'encrypted_key'   => 'wrapped-vault-key',
+        ]);
+
+        Passport::actingAs($grantee, ['legacy_full_access'], 'api-guard');
+        $response = $this
+            ->getJson('/api/v1/emergency-contacts/for-me');
+
+        $response->assertStatus(200);
+
+        $active    = collect($response->json())->firstWhere('id', $activeContact->id);
+        $confirmed = collect($response->json())->firstWhere('id', $confirmedContact->id);
+
+        $this->assertSame('wrapped-vault-key', $active['encrypted_key']);
+        $this->assertArrayNotHasKey('encrypted_key', $confirmed);
+        $this->assertTrue($active['has_encrypted_key']);
+    }
+
+    // ── B13 guards ────────────────────────────────────────────────────────
+
+    public function test_approve_requires_pending_status() : void
+    {
+        $owner   = $this->createEncryptedUser();
+        $contact = EmergencyContact::factory()->create([
+            'owner_id' => $owner->id,
+        ]);
+
+        $request = EmergencyAccessRequest::factory()->create([
+            'contact_id' => $contact->id,
+            'status'     => 'denied',
+        ]);
+
+        Passport::actingAs($owner, ['legacy_full_access'], 'api-guard');
+        $this
+            ->postJson("/api/v1/emergency-requests/{$request->id}/approve")
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('emergency_access_requests', [
+            'id'     => $request->id,
+            'status' => 'denied',
+        ]);
+    }
+
+    public function test_deny_requires_pending_status() : void
+    {
+        $owner   = $this->createEncryptedUser();
+        $contact = EmergencyContact::factory()->create([
+            'owner_id' => $owner->id,
+        ]);
+
+        $request = EmergencyAccessRequest::factory()->create([
+            'contact_id' => $contact->id,
+            'status'     => 'approved',
+        ]);
+
+        Passport::actingAs($owner, ['legacy_full_access'], 'api-guard');
+        $this
+            ->postJson("/api/v1/emergency-requests/{$request->id}/deny")
+            ->assertStatus(422);
+    }
+
+    public function test_request_access_is_deduplicated() : void
+    {
+        $owner   = $this->createEncryptedUser();
+        $grantee = $this->createEncryptedUser();
+
+        $contact = EmergencyContact::factory()->create([
+            'owner_id'        => $owner->id,
+            'trusted_user_id' => $grantee->id,
+            'status'          => 'confirmed',
+        ]);
+
+        Passport::actingAs($grantee, ['legacy_full_access'], 'api-guard');
+        $this
+            ->postJson("/api/v1/emergency-contacts/{$contact->id}/request")
+            ->assertStatus(201);
+
+        $this
+            ->postJson("/api/v1/emergency-contacts/{$contact->id}/request")
+            ->assertStatus(422);
+
+        $this->assertSame(1, EmergencyAccessRequest::where('contact_id', $contact->id)->where('status', 'pending')->count());
     }
 }

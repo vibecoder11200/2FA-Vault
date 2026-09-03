@@ -59,7 +59,7 @@ class IconControllerTest extends FeatureTestCase
         $iconName = 'testIcon.jpg';
         $file     = UploadedFile::fake()->image($iconName);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/icons', [
                 'icon' => $file,
@@ -75,7 +75,7 @@ class IconControllerTest extends FeatureTestCase
     {
         $file = UploadedFile::fake()->image('testIcon.jpg');
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/icons', [
                 'icon' => $file,
@@ -85,7 +85,7 @@ class IconControllerTest extends FeatureTestCase
     #[Test]
     public function test_upload_with_invalid_data_returns_validation_error()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/icons', [
                 'icon' => null,
@@ -98,7 +98,7 @@ class IconControllerTest extends FeatureTestCase
     {
         $file = LocalFile::fake()->infectedSvgIconFile();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/icons', [
                 'icon' => $file,
@@ -116,7 +116,7 @@ class IconControllerTest extends FeatureTestCase
             CommonDataProvider::SELFH_URL => Http::response(HttpRequestTestData::SVG_LOGO_BODY, 200),
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/icons/default', [
                 'service' => 'service',
@@ -135,7 +135,7 @@ class IconControllerTest extends FeatureTestCase
             CommonDataProvider::DASHBOARDICONS_URL => Http::response(OtpTestData::ICON_SVG_DATA, 200),
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/icons/default', [
                 'service'        => 'service',
@@ -160,7 +160,7 @@ class IconControllerTest extends FeatureTestCase
         Storage::disk('iconPacks')->put($requestedIconPack . '/' . OtpTestData::ICON_SVG, OtpTestData::ICON_SVG_DATA);
         Storage::disk('iconPacks')->put('anotherPackDir/' . OtpTestData::ICON_PNG, base64_decode(OtpTestData::ICON_PNG_DATA));
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/icons/default', [
                 'service'  => OtpTestData::ICON_NAME,
@@ -173,7 +173,7 @@ class IconControllerTest extends FeatureTestCase
     #[Test]
     public function test_fetch_logo_return_validation_error()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/icons/default', [
                 'service'        => 'service',
@@ -181,7 +181,7 @@ class IconControllerTest extends FeatureTestCase
             ])
             ->assertStatus(422);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/icons/default', [
                 'service'  => 'service',
@@ -197,7 +197,7 @@ class IconControllerTest extends FeatureTestCase
             CommonDataProvider::SELFH_URL => Http::response(OtpTestData::ICON_SVG_DATA_INFECTED, 200),
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/icons/default', [
                 'service' => 'service',
@@ -216,7 +216,7 @@ class IconControllerTest extends FeatureTestCase
     {
         Storage::disk('iconPacks')->put('packDir/' . OtpTestData::ICON_SVG, OtpTestData::ICON_SVG_DATA_INFECTED);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/icons/default', [
                 'service'  => OtpTestData::ICON_NAME,
@@ -235,7 +235,7 @@ class IconControllerTest extends FeatureTestCase
             CommonDataProvider::SELFH_URL => Http::response('not found', 404),
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/icons/default', [
                 'service' => 'NameOfAnUnknownServiceForSure',
@@ -248,7 +248,7 @@ class IconControllerTest extends FeatureTestCase
     {
         Storage::disk('iconPacks')->put('packDir/' . OtpTestData::ICON_SVG, OtpTestData::ICON_SVG_DATA);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/icons/default', [
                 'service'  => 'NameOfAnUnknownServiceForSure',
@@ -263,7 +263,7 @@ class IconControllerTest extends FeatureTestCase
         Storage::disk('iconPacks')->put('packDirWithSvg/' . OtpTestData::ICON_SVG, OtpTestData::ICON_SVG_DATA);
         Storage::disk('iconPacks')->put('anotherPackDirWithSvg/' . OtpTestData::ICON_SVG, OtpTestData::ICON_SVG_DATA);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/icons/packs')
             ->assertStatus(200)
@@ -280,7 +280,7 @@ class IconControllerTest extends FeatureTestCase
     #[Test]
     public function test_icon_packs_returns_empty_collection()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/icons/packs')
             ->assertStatus(200)
@@ -294,7 +294,7 @@ class IconControllerTest extends FeatureTestCase
 
         $iconName = 'testIcon.jpg';
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('DELETE', '/api/v1/icons/' . $iconName)
             ->assertNoContent(204);
@@ -305,7 +305,7 @@ class IconControllerTest extends FeatureTestCase
     #[Test]
     public function test_delete_invalid_icon_returns_success()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('DELETE', '/api/v1/icons/null')
             ->assertNoContent(204);
@@ -320,7 +320,7 @@ class IconControllerTest extends FeatureTestCase
             'icon' => 'testIcon.jpg',
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('DELETE', '/api/v1/icons/testIcon.jpg')
             ->assertForbidden()

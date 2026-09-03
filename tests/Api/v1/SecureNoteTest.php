@@ -25,7 +25,7 @@ class SecureNoteTest extends TestCase
     {
         $user = User::factory()->create();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->postJson('/api/v1/secure-notes', [
             'title'        => 'My secret',
             'content'      => 'top secret content',
@@ -47,7 +47,7 @@ class SecureNoteTest extends TestCase
         $user      = User::factory()->create();
         $plaintext = 'top secret content that must not appear in the DB';
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this->postJson('/api/v1/secure-notes', [
             'title'   => 'Encrypted note',
             'content' => $plaintext,
@@ -66,13 +66,13 @@ class SecureNoteTest extends TestCase
         $user = User::factory()->create();
         $note = SecureNote::factory()->forUser($user)->create(['title' => 'Visible']);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->getJson('/api/v1/secure-notes')
             ->assertStatus(200)
             ->assertJsonFragment(['title' => 'Visible']);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->getJson('/api/v1/secure-notes/' . $note->id)
             ->assertStatus(200)
@@ -86,7 +86,7 @@ class SecureNoteTest extends TestCase
         $intruder = User::factory()->create();
         $note     = SecureNote::factory()->forUser($owner)->create();
 
-        Passport::actingAs($intruder, [], 'api-guard');
+        Passport::actingAs($intruder, ['legacy_full_access'], 'api-guard');
         $this
             ->getJson('/api/v1/secure-notes/' . $note->id)
             ->assertForbidden();
@@ -98,7 +98,7 @@ class SecureNoteTest extends TestCase
         $user = User::factory()->create();
         $note = SecureNote::factory()->forUser($user)->create();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->putJson('/api/v1/secure-notes/' . $note->id, [
                 'title'   => 'Updated',
@@ -114,7 +114,7 @@ class SecureNoteTest extends TestCase
         $user = User::factory()->create();
         $note = SecureNote::factory()->forUser($user)->create();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->deleteJson('/api/v1/secure-notes/' . $note->id)
             ->assertStatus(200);

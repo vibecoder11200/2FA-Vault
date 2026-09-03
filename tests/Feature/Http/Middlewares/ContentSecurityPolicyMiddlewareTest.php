@@ -79,7 +79,7 @@ class ContentSecurityPolicyMiddlewareTest extends FeatureTestCase
          */
         $user = User::factory()->create();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/encryption/status');
 
@@ -99,7 +99,7 @@ class ContentSecurityPolicyMiddlewareTest extends FeatureTestCase
          */
         $user = User::factory()->create();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/encryption/status');
 

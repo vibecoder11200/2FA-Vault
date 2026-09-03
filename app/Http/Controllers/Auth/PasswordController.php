@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UserPatchPwdRequest;
+use App\Services\CredentialRevocationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -15,7 +16,7 @@ class PasswordController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(UserPatchPwdRequest $request)
+    public function update(UserPatchPwdRequest $request, CredentialRevocationService $revocationService)
     {
         $user      = $request->user();
         $validated = $request->validated();
@@ -37,6 +38,10 @@ class PasswordController extends Controller
                 'password' => Hash::make($validated['password']),
             ]);
             Log::info(sprintf('Password of user ID #%s updated', $user->id));
+
+            // A password change invalidates every credential obtained with
+            // the old one: revoke PATs, evict sessions and re-arm the vault.
+            $revocationService->revokeAllFor($user->refresh());
         }
 
         return response()->json(['message' => __('notification.password_successfully_changed')]);

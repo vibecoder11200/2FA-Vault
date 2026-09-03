@@ -40,7 +40,7 @@ class AccountHealthTest extends FeatureTestCase
             'last_used_at' => Carbon::now()->subDays(5),
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/twofaccounts/' . $account->id . '/health')
             ->assertOk()
@@ -56,7 +56,7 @@ class AccountHealthTest extends FeatureTestCase
     {
         $account = TwoFAccount::factory()->for($this->anotherUser)->create();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/twofaccounts/' . $account->id . '/health')
             ->assertForbidden();
@@ -76,7 +76,7 @@ class AccountHealthTest extends FeatureTestCase
             'algorithm' => 'md5', 'last_used_at' => Carbon::now()->subDays(400),
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/twofaccounts/health/summary')
             ->assertOk()
@@ -96,7 +96,7 @@ class AccountHealthTest extends FeatureTestCase
     public function test_health_route_not_captured_by_api_resource_show() : void
     {
         // The /health/summary literal must resolve to the controller, not 404
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/twofaccounts/health/summary')
             ->assertOk();

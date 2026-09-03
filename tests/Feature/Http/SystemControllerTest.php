@@ -47,7 +47,7 @@ class SystemControllerTest extends FeatureTestCase
     #[Test]
     public function test_infos_returns_forbidden()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/system/infos')
             ->assertForbidden();
@@ -56,7 +56,7 @@ class SystemControllerTest extends FeatureTestCase
     #[Test]
     public function test_infos_returns_only_base_collection()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/system/infos')
             ->assertOk()
@@ -145,7 +145,7 @@ class SystemControllerTest extends FeatureTestCase
     #[Test]
     public function test_testemail_returns_forbidden()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/system/test-email', [])
             ->assertForbidden();

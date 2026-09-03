@@ -23,6 +23,9 @@ class LoginRequest extends FormRequest
      */
     public function rules()
     {
+        // A8: the exists-rule deliberately stays (upstream 2FAuth UX parity —
+        // "unknown email" vs "wrong password" message). The route is
+        // throttled (email+IP keyed), which bounds the enumeration oracle.
         return [
             'email' => [
                 'required',

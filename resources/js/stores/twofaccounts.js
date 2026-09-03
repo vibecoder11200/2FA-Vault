@@ -25,13 +25,27 @@ export const useTwofaccounts = defineStore('twofaccounts', {
 
             return state.items.filter(
                 item => {
+                    // B9: shared-with-me accounts only appear in the -4 virtual
+                    // group; every other view must exclude them.
+                    const activeGroup = parseInt(user.preferences.activeGroup)
+
+                    if (activeGroup === -4) {
+                        return item.is_shared === true &&
+                            ((item.service ? item.service.toLowerCase().includes(state.filter.toLowerCase()) : false) ||
+                            item.account.toLowerCase().includes(state.filter.toLowerCase()))
+                    }
+
+                    if (item.is_shared === true) {
+                        return false
+                    }
+
                     if (state.groupLessOnly) {
                         return item.group_id == null
                     }
-                    else if (parseInt(user.preferences.activeGroup) > 0) {
+                    else if (activeGroup > 0) {
                         return ((item.service ? item.service.toLowerCase().includes(state.filter.toLowerCase()) : false) ||
                             item.account.toLowerCase().includes(state.filter.toLowerCase())) &&
-                            (item.group_id == parseInt(user.preferences.activeGroup))
+                            (item.group_id == activeGroup)
                     }
                     else {
                         return ((item.service ? item.service.toLowerCase().includes(state.filter.toLowerCase()) : false) ||
@@ -47,7 +61,10 @@ export const useTwofaccounts = defineStore('twofaccounts', {
          *     => The method will return [30, 40]
          */
         periods(state) {
-            return state.items.filter(acc => acc.otp_type == 'totp').map(function(item) {
+            // E3: steamtotp is time-based too (fixed 30s period) — excluding it
+            // left steam-only vaults with zero DotsControllers, so displayed
+            // OTPs silently froze on expired codes.
+            return state.items.filter(acc => ['totp', 'steamtotp'].includes(acc.otp_type)).map(function(item) {
                 return { period: item.period, generated_at: item.otp?.generated_at }
             }).filter((value, index, self) => index === self.findIndex((t) => (
                 t.period === value.period
@@ -134,6 +151,24 @@ export const useTwofaccounts = defineStore('twofaccounts', {
                 })
             }
             else this.backendWasNewer = false
+        },
+
+        /**
+         * B9: fetches the accounts shared WITH the current user (virtual
+         * group -4) and merges them into the collection flagged with
+         * is_shared. The `filtered` getter shows them only while the active
+         * group is -4, so they never leak into the user's own group views.
+         */
+        async fetchSharedWithMe() {
+            const response = await twofaccountService.getAll(false, { params: { group_id: -4 } })
+            const shared = (response.data ?? []).map(account => ({ ...account, is_shared: true }))
+            const ownIds = new Set(this.items.filter(i => i.is_shared !== true).map(i => i.id))
+            // Refresh the shared slice, keep the own slice untouched.
+            this.items = [
+                ...this.items.filter(i => i.is_shared !== true),
+                ...shared.filter(s => !ownIds.has(s.id)),
+            ]
+            return shared
         },
 
         /**

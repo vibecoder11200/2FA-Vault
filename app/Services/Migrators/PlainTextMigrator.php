@@ -47,7 +47,13 @@ class PlainTextMigrator extends Migrator
                 $fakeAccount->otp_type = substr($uri, 10, 4);
                 // Only basic fields are filled to limit the risk of another exception.
                 $fakeAccount->account = __('message.invalid_account');
-                $fakeAccount->service = filter_input(INPUT_GET, 'issuer', FILTER_SANITIZE_ENCODED) ?? __('message.invalid_service');
+
+                // C13: derive the issuer from the parsed otpauth URI (the old
+                // INPUT_GET read pulled `issuer` from the current HTTP request
+                // instead of the migration data).
+                $query = [];
+                parse_str((string) parse_url($uri, PHP_URL_QUERY), $query);
+                $fakeAccount->service = $query['issuer'] ?? __('message.invalid_service');
                 // The secret field is used to pass the error, not very clean but will do the job for now.
                 $fakeAccount->secret = $exception->getMessage();
 

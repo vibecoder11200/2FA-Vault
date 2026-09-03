@@ -32,7 +32,7 @@ class BackupDestinationTest extends TestCase
         Storage::fake('local');
         $user = User::factory()->create();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->postJson('/api/v1/user/backup-destinations', [
             'label'     => 'Local vault',
             'type'      => 'local',
@@ -63,7 +63,7 @@ class BackupDestinationTest extends TestCase
             'is_active' => true,
         ]);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->getJson('/api/v1/user/backup-destinations');
 
         $response->assertStatus(200)->assertJsonMissing(['secret_key' => 'LEAK_ME_IF_BUG']);
@@ -79,7 +79,7 @@ class BackupDestinationTest extends TestCase
             'config'  => ['path' => 'b'], 'is_active' => true,
         ]);
 
-        Passport::actingAs($intruder, [], 'api-guard');
+        Passport::actingAs($intruder, ['legacy_full_access'], 'api-guard');
         $this
             ->getJson('/api/v1/user/backup-destinations')
             ->assertStatus(200)
@@ -96,7 +96,7 @@ class BackupDestinationTest extends TestCase
             'config'  => ['path' => 'old'], 'is_active' => true,
         ]);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->putJson('/api/v1/user/backup-destinations/' . $destination->id, [
                 'label'  => 'New',
@@ -118,7 +118,7 @@ class BackupDestinationTest extends TestCase
             'config'  => ['path' => 'b'], 'is_active' => true,
         ]);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->deleteJson('/api/v1/user/backup-destinations/' . $destination->id)
             ->assertStatus(204);
@@ -136,7 +136,7 @@ class BackupDestinationTest extends TestCase
             'config'  => ['path' => 'b'], 'is_active' => true,
         ]);
 
-        Passport::actingAs($intruder, [], 'api-guard');
+        Passport::actingAs($intruder, ['legacy_full_access'], 'api-guard');
         $this
             ->deleteJson('/api/v1/user/backup-destinations/' . $destination->id)
             ->assertNotFound();
@@ -152,7 +152,7 @@ class BackupDestinationTest extends TestCase
             'config'  => ['path' => 'backups'], 'is_active' => true,
         ]);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->postJson('/api/v1/user/backup-destinations/' . $destination->id . '/test')
             ->assertStatus(200)

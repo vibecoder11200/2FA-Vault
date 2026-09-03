@@ -52,15 +52,22 @@ class AegisMigrator extends Migrator
         $twofaccounts = [];
 
         foreach ($json['db']['entries'] as $key => $otp_parameters) {
-            $parameters              = [];
-            $parameters['otp_type']  = $otp_parameters['type'] == 'steam' ? TwoFAccount::STEAM_TOTP : $otp_parameters['type'];
-            $parameters['service']   = $otp_parameters['issuer'];
-            $parameters['account']   = $otp_parameters['name'] ?? $parameters['service'];
-            $parameters['secret']    = $this->padToValidBase32Secret($otp_parameters['info']['secret']);
-            $parameters['algorithm'] = $otp_parameters['info']['algo'] ?? null;
-            $parameters['digits']    = $otp_parameters['info']['digits'] ?? null;
-            $parameters['counter']   = $otp_parameters['info']['counter'] ?? null;
-            $parameters['period']    = $otp_parameters['info']['period'] ?? null;
+            $parameters = [];
+
+            // C9: key dereferences inside try/catch — one malformed item
+            // yields a clear indexed error instead of an unhandled PHP error.
+            try {
+                $parameters['otp_type']  = $otp_parameters['type'] == 'steam' ? TwoFAccount::STEAM_TOTP : $otp_parameters['type'];
+                $parameters['service']   = $otp_parameters['issuer'];
+                $parameters['account']   = $otp_parameters['name'] ?? $parameters['service'];
+                $parameters['secret']    = $this->padToValidBase32Secret($otp_parameters['info']['secret']);
+                $parameters['algorithm'] = $otp_parameters['info']['algo'] ?? null;
+                $parameters['digits']    = $otp_parameters['info']['digits'] ?? null;
+                $parameters['counter']   = $otp_parameters['info']['counter'] ?? null;
+                $parameters['period']    = $otp_parameters['info']['period'] ?? null;
+            } catch (\Exception $exception) {
+                throw new InvalidMigrationDataException(sprintf('Aegis (item #%s: missing required field)', $key));
+            }
 
             try {
                 // Aegis supports 3 image extensions for icons
@@ -83,7 +90,16 @@ class AegisMigrator extends Migrator
                         default:
                             throw new \Exception;
                     }
-                    $parameters['iconData'] = base64_decode($otp_parameters['icon']);
+
+                    // C13: strict base64 validation and a 1 MB decoded cap —
+                    // oversized/invalid icon payloads are skipped, not stored.
+                    $iconData = base64_decode($otp_parameters['icon'], true);
+
+                    if ($iconData === false || strlen($iconData) > 1048576) {
+                        throw new \Exception;
+                    }
+
+                    $parameters['iconData'] = $iconData;
                 }
             } catch (\Exception) {
                 // we do nothing

@@ -57,7 +57,7 @@ class TwoFAccountModelTest extends FeatureTestCase
 
         /** @var \Illuminate\Contracts\Auth\Authenticatable $user */
         $this->user = User::factory()->create();
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
 
         $this->customTotpTwofaccount = TwoFAccount::factory()->for($this->user)->create([
             'legacy_uri' => OtpTestData::TOTP_FULL_CUSTOM_URI,

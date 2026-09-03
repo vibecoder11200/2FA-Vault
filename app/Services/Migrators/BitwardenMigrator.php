@@ -2,6 +2,7 @@
 
 namespace App\Services\Migrators;
 
+use App\Exceptions\EncryptedMigrationException;
 use App\Exceptions\InvalidMigrationDataException;
 use App\Models\TwoFAccount;
 use Illuminate\Support\Arr;
@@ -89,6 +90,14 @@ class BitwardenMigrator extends Migrator
             throw new InvalidMigrationDataException('Bitwarden');
         }
 
+        // C9: detect encrypted Bitwarden exports ("encrypted": true or an
+        // encryptionConfig object) and fail with clear guidance instead of
+        // importing garbage.
+        if (($json['encrypted'] ?? false) === true || Arr::has($json, 'encryptionConfig')) {
+            Log::error('Bitwarden export is password-encrypted');
+            throw new EncryptedMigrationException('Bitwarden');
+        }
+
         /**
          * @var array<int|string, \App\Models\TwoFAccount> $twofaccounts
          */
@@ -96,7 +105,21 @@ class BitwardenMigrator extends Migrator
 
         foreach ($json['items'] as $key => $otp_parameters) {
             $parameters = [];
-            $uri        = $otp_parameters['login']['totp'];
+
+            // C9: key dereferences live inside the try/catch so one
+            // malformed item yields a clear indexed error instead of an
+            // unhandled PHP error aborting the whole import.
+            $uri = null;
+
+            try {
+                $uri = $otp_parameters['login']['totp'] ?? null;
+
+                if (!is_string($uri) || $uri === '') {
+                    throw new \UnexpectedValueException('missing login.totp');
+                }
+            } catch (\Exception $exception) {
+                throw new InvalidMigrationDataException(sprintf('Bitwarden (item #%s: missing required field)', $key));
+            }
 
             // For now Bitwarden only supports totp/steam, see https://bitwarden.com/help/integrated-authenticator/
             if ($isSteam = str_starts_with($uri, 'steam://')) {
@@ -106,7 +129,7 @@ class BitwardenMigrator extends Migrator
                 $parameters['otp_type'] = TwoFAccount::TOTP;
             }
 
-            $parameters['service'] = $otp_parameters['name'];
+            $parameters['service'] = $otp_parameters['name'] ?? null;
             $parameters['account'] = $otp_parameters['login']['username'] ?? $parameters['service'];
 
             try {

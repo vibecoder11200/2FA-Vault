@@ -54,7 +54,7 @@ class TwoFAccountRecoveryCodesTest extends FeatureTestCase
 
         $codes = '["abcd-1234","efgh-5678"]';
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/twofaccounts', $this->storePayload(['recovery_codes' => $codes]))
             ->assertCreated();
@@ -76,7 +76,7 @@ class TwoFAccountRecoveryCodesTest extends FeatureTestCase
         $account = TwoFAccount::factory()->for($this->user)->create();
         $account->forceFill(['recovery_codes' => '["code-one"]'])->save();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/twofaccounts/' . $account->id . '?withSecret=1')
             ->assertOk()
@@ -90,7 +90,7 @@ class TwoFAccountRecoveryCodesTest extends FeatureTestCase
         $account->forceFill(['recovery_codes' => '["keep-me"]'])->save();
 
         // Update with all required fields but omit recovery_codes
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('PATCH', '/api/v1/twofaccounts/' . $account->id, [
                 'service'   => 'GitHub',
@@ -112,7 +112,7 @@ class TwoFAccountRecoveryCodesTest extends FeatureTestCase
         $account = TwoFAccount::factory()->for($this->user)->create();
         $account->forceFill(['recovery_codes' => '["clear-me"]'])->save();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('PATCH', '/api/v1/twofaccounts/' . $account->id, [
                 'service'        => 'GitHub',
@@ -137,7 +137,7 @@ class TwoFAccountRecoveryCodesTest extends FeatureTestCase
         $account  = TwoFAccount::factory()->for($owner)->create();
         $account->forceFill(['recovery_codes' => '["secret-code"]'])->save();
 
-        Passport::actingAs($intruder, [], 'api-guard');
+        Passport::actingAs($intruder, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/twofaccounts/' . $account->id)
             ->assertForbidden();

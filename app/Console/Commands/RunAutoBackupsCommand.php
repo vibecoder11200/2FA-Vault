@@ -45,6 +45,11 @@ class RunAutoBackupsCommand extends Command
      * Determine whether a backup is due for the user at $now.
      * Public/static so it can be unit-tested in isolation.
      *
+     * C12 catch-up semantics: a backup is due once the configured time-of-day
+     * (UTC) has been reached today AND the last run predates the start of the
+     * current frequency window — a missed scheduler tick no longer skips the
+     * whole day/week/month.
+     *
      * @param  array<string,mixed>  $preferences
      */
     public static function isBackupDue(array $preferences, Carbon $now, ?Carbon $lastRun): bool
@@ -54,8 +59,10 @@ class RunAutoBackupsCommand extends Command
 
         [$hour, $minute] = array_pad(explode(':', (string) $time), 2, '0');
 
-        // Must match the configured time-of-day (UTC) to the minute
-        if ((int) $now->format('H') !== (int) $hour || (int) $now->format('i') !== (int) $minute) {
+        $dueAt = $now->copy()->utc()->startOfDay()->setTime((int) $hour, (int) $minute);
+
+        // Not yet due today
+        if ($now->utc()->lessThan($dueAt)) {
             return false;
         }
 
@@ -64,9 +71,9 @@ class RunAutoBackupsCommand extends Command
         }
 
         return match ($frequency) {
-            'daily'   => $lastRun->diffInDays($now) >= 1,
-            'weekly'  => $lastRun->diffInWeeks($now) >= 1,
-            'monthly' => $lastRun->diffInMonths($now) >= 1,
+            'daily'   => $lastRun->utc()->lessThan($dueAt),
+            'weekly'  => $lastRun->utc()->lessThan($dueAt->copy()->subWeek()),
+            'monthly' => $lastRun->utc()->lessThan($dueAt->copy()->subMonth()),
             default   => false,
         };
     }

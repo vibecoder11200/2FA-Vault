@@ -7,9 +7,13 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Delivers the .vault backup file as a mail attachment.
- * The payload is already double-encrypted by BackupService, so the
- * attachment is safe to transmit over email.
+ * Delivers a backup envelope as a mail attachment.
+ *
+ * The attachment is a password-encrypted format 2 envelope (AES-256-GCM with
+ * an Argon2id-derived key) — AutoBackupJob only reaches this mail for
+ * destinations that opted in AND configured an encryption password; the
+ * backup password itself is NOT included, so the file is unreadable to the
+ * mail transport.
  */
 class BackupAttachmentMail extends Mailable
 {

@@ -128,7 +128,7 @@ class LoginTest extends FeatureTestCase
         ])->assertOk();
 
         $this->actingAs($this->user, self::WEB_GUARD)
-            ->json('GET', '/user/logout');
+            ->json('POST', '/user/logout');
 
         $this->travel(1)->minute();
 
@@ -156,7 +156,7 @@ class LoginTest extends FeatureTestCase
         ])->assertOk();
 
         $this->actingAs($this->user, self::WEB_GUARD)
-            ->json('GET', '/user/logout');
+            ->json('POST', '/user/logout');
 
         $this->travel(1)->minute();
 
@@ -358,10 +358,23 @@ class LoginTest extends FeatureTestCase
         ]);
 
         $response = $this->actingAs($this->user, self::WEB_GUARD)
-            ->json('GET', '/user/logout')
+            ->json('POST', '/user/logout')
             ->assertOk()
             ->assertExactJson([
                 'message' => 'signed out',
+            ]);
+    }
+
+    #[Test]
+    public function test_user_logout_via_get_returns_410()
+    {
+        // A10: the legacy CSRF-able GET logout route answers 410 Gone. The
+        // SPA caller switches to POST in a later phase.
+        $this->actingAs($this->user, self::WEB_GUARD)
+            ->json('GET', '/user/logout')
+            ->assertStatus(410)
+            ->assertJson([
+                'message' => 'Logout must be requested using POST.',
             ]);
     }
 
@@ -378,13 +391,13 @@ class LoginTest extends FeatureTestCase
         ]);
 
         // Ping a protected endpoint to log last_seen_at time
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/twofaccounts');
 
         $this->travelTo(Carbon::now()->addMinutes(2));
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/twofaccounts')
             ->assertStatus(418);
@@ -399,7 +412,7 @@ class LoginTest extends FeatureTestCase
         ])->assertOk();
 
         $this->actingAs($this->user, self::WEB_GUARD)
-            ->json('GET', '/user/logout')
+            ->json('POST', '/user/logout')
             ->assertOk();
 
         $authlog = $this->user->latestAuthentication()->first();
@@ -415,7 +428,7 @@ class LoginTest extends FeatureTestCase
     public function test_orphan_web_logout_is_logged()
     {
         $this->actingAs($this->user, self::WEB_GUARD)
-            ->json('GET', '/user/logout')
+            ->json('POST', '/user/logout')
             ->assertOk();
 
         $authlog = AuthLog::first();

@@ -67,13 +67,31 @@ class PWAService {
   }
 
   /**
-   * Apply pending update
+   * Apply pending update (E14: wait for the new SW to take control before
+   * reloading, and reset the updating flag when there is no waiting worker).
    */
   applyUpdate() {
-    if (this.registration && this.registration.waiting) {
-      this.registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      window.location.reload();
+    if (!this.registration || !this.registration.waiting) {
+      this.updating = false
+      return
     }
+
+    this.registration.waiting.postMessage({ type: 'SKIP_WAITING' })
+
+    let reloaded = false
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloaded) return
+      reloaded = true
+      window.location.reload()
+    })
+
+    // Safety net: if controllerchange never fires, reload after a grace period.
+    setTimeout(() => {
+      if (!reloaded) {
+        reloaded = true
+        window.location.reload()
+      }
+    }, 3000)
   }
 
   /**

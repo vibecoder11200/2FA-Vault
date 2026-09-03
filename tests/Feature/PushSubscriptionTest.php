@@ -38,7 +38,7 @@ class PushSubscriptionTest extends TestCase
             'auth'     => 'tBHItJI5svbpez7KI4CCXg==',
         ];
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/push/subscribe', $subscriptionData);
 
@@ -78,7 +78,7 @@ class PushSubscriptionTest extends TestCase
     #[Test]
     public function test_store_subscription_requires_endpoint()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/push/subscribe', [
                 'p256dh' => 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37gp_rvQ...',
@@ -92,7 +92,7 @@ class PushSubscriptionTest extends TestCase
     #[Test]
     public function test_store_subscription_endpoint_must_be_url()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/push/subscribe', [
                 'endpoint' => 'not-a-valid-url',
@@ -107,7 +107,7 @@ class PushSubscriptionTest extends TestCase
     #[Test]
     public function test_store_subscription_requires_public_key()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/push/subscribe', [
                 'endpoint' => 'https://fcm.googleapis.com/fcm/send/example-endpoint-id',
@@ -121,7 +121,7 @@ class PushSubscriptionTest extends TestCase
     #[Test]
     public function test_store_subscription_requires_auth_token()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/push/subscribe', [
                 'endpoint' => 'https://fcm.googleapis.com/fcm/send/example-endpoint-id',
@@ -142,7 +142,7 @@ class PushSubscriptionTest extends TestCase
         ];
 
         // Store first subscription
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->postJson('/api/v1/push/subscribe', $subscriptionData);
 
@@ -153,7 +153,7 @@ class PushSubscriptionTest extends TestCase
             'auth'     => 'NewAuthToken123==',
         ];
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson('/api/v1/push/subscribe', $updatedData);
 
@@ -186,11 +186,11 @@ class PushSubscriptionTest extends TestCase
             'auth'     => 'AuthToken2==',
         ];
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->postJson('/api/v1/push/subscribe', $subscription1);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->postJson('/api/v1/push/subscribe', $subscription2);
 
@@ -207,7 +207,7 @@ class PushSubscriptionTest extends TestCase
             'endpoint' => 'https://fcm.googleapis.com/fcm/send/example-endpoint-id',
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->deleteJson('/api/v1/push/unsubscribe', [
                 'endpoint' => $subscription->endpoint,
@@ -239,7 +239,7 @@ class PushSubscriptionTest extends TestCase
     #[Test]
     public function test_remove_subscription_requires_endpoint()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->deleteJson('/api/v1/push/unsubscribe', []);
 
@@ -250,7 +250,7 @@ class PushSubscriptionTest extends TestCase
     #[Test]
     public function test_remove_nonexistent_subscription_returns_404()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->deleteJson('/api/v1/push/unsubscribe', [
                 'endpoint' => 'https://fcm.googleapis.com/fcm/send/nonexistent-endpoint',
@@ -272,7 +272,7 @@ class PushSubscriptionTest extends TestCase
             'endpoint' => 'https://fcm.googleapis.com/fcm/send/other-user-endpoint',
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->deleteJson('/api/v1/push/unsubscribe', [
                 'endpoint' => $otherSubscription->endpoint,
@@ -293,7 +293,7 @@ class PushSubscriptionTest extends TestCase
             'user_id' => $this->user->id,
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/push/subscriptions');
 
@@ -324,7 +324,7 @@ class PushSubscriptionTest extends TestCase
             'user_id' => $otherUser->id,
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson('/api/v1/push/subscriptions');
 

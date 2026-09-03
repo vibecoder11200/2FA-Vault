@@ -29,6 +29,28 @@ class BackupService
     const MIN_SUPPORTED_VERSION = '1.0';
     const MAX_ACCOUNTS_PER_BACKUP = 10000;
 
+    /**
+     * Backup envelope format versions.
+     *
+     * 1 (implicit, legacy): envelope whose `data` is base64 of the PLAINTEXT
+     * payload JSON — the old "password is theater" shape. Importing one works
+     * but is flagged with a legacy warning.
+     *
+     * 2: `data` is base64 of AES-256-GCM ciphertext; the envelope carries real
+     * crypto material (salt, iv, tag, kdf params) in `encryption`. v2 files are
+     * encrypted client-side (SPA) or per-destination server-side (auto-backup)
+     * with a user-chosen password. A v2 envelope MUST be decrypted before its
+     * payload is imported (RT4: no silent fallback/downgrade).
+     */
+    const ENVELOPE_FORMAT_V2 = 2;
+
+    /**
+     * Argon2id KDF parameters used for backup password encryption. The SPA
+     * (argon2-browser) and the server (libsodium) MUST derive identical keys:
+     * t=3 passes, m=65536 KiB, p=1.
+     */
+    const BACKUP_KDF_PARAMS = ['time' => 3, 'memory_kib' => 65536, 'parallelism' => 1];
+
     public function __construct(
         private readonly TwoFAuthMigrator $twoFAuthMigrator,
         private readonly TwoFASMigrator $twoFASMigrator,
@@ -38,10 +60,20 @@ class BackupService
     ) {
     }
 
+    /** @var int FAKE_ID rows dropped by the last mapMigratedAccountToArray run */
+    private int $lastFakeAccountCount = 0;
+
     /**
-     * Generate encrypted backup for user
+     * Generate the backup payload for a user.
      *
-     * @return array Canonical .vault envelope
+     * Returns the plaintext inner payload (marked `format: 2`). The payload is
+     * NOT envelope-encrypted here: for manual export the SPA fetches it and
+     * encrypts it client-side with the user-typed password (see
+     * buildEncryptedEnvelope for the v2 envelope shape); for auto-backup the
+     * job wraps it per destination. Account secrets stay individually
+     * encrypted with the user's E2EE key when E2EE is enabled.
+     *
+     * @return array Backup inner payload
      */
     public function generateEncryptedBackup(User $user, bool $includeGroups = true): array
     {
@@ -79,7 +111,8 @@ class BackupService
             ->toArray();
 
         $backupPayload = [
-            'format' => '2FA-Vault',
+            'app' => '2FA-Vault',
+            'format' => self::ENVELOPE_FORMAT_V2,
             'version' => self::CURRENT_FORMAT_VERSION,
             'encrypted' => true,
             'double_encrypted' => true,
@@ -108,6 +141,16 @@ class BackupService
                 ->toArray();
         }
 
+        return $backupPayload;
+    }
+
+    /**
+     * Build a legacy (format 1, unencrypted `data`) envelope around a payload.
+     * Used only for auto-backup destinations without a configured
+     * encryption_password — the UI warns about these.
+     */
+    public function buildLegacyEnvelope(array $payload): array
+    {
         return [
             'app' => '2FA-Vault',
             'version' => self::CURRENT_FORMAT_VERSION,
@@ -116,10 +159,89 @@ class BackupService
                 'algorithm' => 'aes-256-gcm',
                 'kdf' => 'argon2id',
             ],
-            'data' => base64_encode(json_encode($backupPayload)),
+            'data' => base64_encode(json_encode($payload, JSON_UNESCAPED_SLASHES)),
             'iv' => null,
             'tag' => null,
         ];
+    }
+
+    /**
+     * Build a format 2 envelope: AES-256-GCM over the payload JSON with a
+     * password-derived Argon2id key (libsodium argon2id13, t=3/m=64MiB/p=1,
+     * matching the SPA's argon2-browser stack so the app can decrypt its own
+     * auto-backups).
+     */
+    public function buildEncryptedEnvelope(array $payload, string $password): array
+    {
+        $salt = random_bytes(SODIUM_CRYPTO_PWHASH_SALTBYTES);
+        $key = sodium_crypto_pwhash(
+            32,
+            $password,
+            $salt,
+            self::BACKUP_KDF_PARAMS['time'],
+            self::BACKUP_KDF_PARAMS['memory_kib'] * 1024,
+            SODIUM_CRYPTO_PWHASH_ALG_ARGON2ID13
+        );
+
+        $iv = random_bytes(12);
+        $tag = '';
+        $ciphertext = openssl_encrypt(
+            json_encode($payload, JSON_UNESCAPED_SLASHES),
+            'aes-256-gcm',
+            $key,
+            OPENSSL_RAW_DATA,
+            $iv,
+            $tag,
+            '',
+            16
+        );
+
+        if ($ciphertext === false) {
+            throw new \RuntimeException('Backup envelope encryption failed');
+        }
+
+        return [
+            'app' => '2FA-Vault',
+            'format' => self::ENVELOPE_FORMAT_V2,
+            'version' => self::CURRENT_FORMAT_VERSION,
+            'datetime' => now()->toIso8601String(),
+            'encryption' => [
+                'algorithm' => 'aes-256-gcm',
+                'kdf' => 'argon2id',
+                'kdf_params' => self::BACKUP_KDF_PARAMS,
+                'salt' => base64_encode($salt),
+                'iv' => base64_encode($iv),
+                'tag' => base64_encode($tag),
+            ],
+            'data' => base64_encode($ciphertext),
+        ];
+    }
+
+    /**
+     * True when the data is a format >= 2 envelope that has NOT been decrypted
+     * by the client (payload would carry a top-level `accounts` array).
+     * RT4: such imports are refused — never fall back to the legacy path.
+     */
+    public function isUndecryptedV2Envelope(array $backupData): bool
+    {
+        $format = $backupData['format'] ?? null;
+
+        return $format !== null
+            && is_numeric($format)
+            && (int) $format >= self::ENVELOPE_FORMAT_V2
+            && !isset($backupData['accounts']);
+    }
+
+    /**
+     * True for imports lacking a numeric format marker (legacy v1 plaintext
+     * envelopes / old payloads). The import summary flags these with a legacy
+     * warning banner (RT4).
+     */
+    public function isLegacyVaultImport(array $backupData): bool
+    {
+        $format = $backupData['format'] ?? null;
+
+        return $format === null || !is_numeric($format);
     }
 
     /**
@@ -141,13 +263,29 @@ class BackupService
             ? $this->prepareVaultImport($backupData)
             : $this->prepareExternalImport($backupData, $format);
 
-        return $this->persistImportedAccounts(
+        $result = $this->persistImportedAccounts(
             $user,
             $prepared['accounts'],
             $prepared['groups'],
             $conflictResolution,
             $importGroups
         );
+
+        $result['failed'] += $prepared['failed'] ?? 0;
+        $result['encrypted_count'] = $result['encrypted_ids'] !== []
+            ? count($result['encrypted_ids'])
+            : 0;
+
+        // C3 key-mismatch guard: imported encrypted secrets can only be read
+        // when the importing user's E2EE is enabled and matches the backup's
+        // encryption_version. The SPA surfaces the warning and offers one-click
+        // deletion of the just-imported (undecryptable) accounts.
+        $backupEncryptionVersion = (int) ($backupData['encryption_version'] ?? 0);
+        $result['key_mismatch_warning'] = $result['encrypted_count'] > 0
+            && ((int) ($user->encryption_version ?? 0) === 0
+                || (int) $user->encryption_version !== $backupEncryptionVersion);
+
+        return $result;
     }
 
     private function persistImportedAccounts(
@@ -161,6 +299,8 @@ class BackupService
         $failed = 0;
         $skipped = 0;
         $errors = [];
+        $importedIds = [];
+        $encryptedIds = [];
 
         DB::beginTransaction();
 
@@ -187,6 +327,16 @@ class BackupService
 
             foreach ($accounts as $accountData) {
                 try {
+                    /*
+                     * C10 (dispositioned): duplicate detection compares plaintext
+                     * service/account columns. When the instance runs with
+                     * useEncryption enabled these columns are APP_KEY-encrypted
+                     * at rest, so conflict detection silently degrades to
+                     * no-match for existing accounts. Server-side comparison is
+                     * impossible without breaking zero-knowledge E2EE — this is
+                     * a documented limitation (client-side compare of decrypted
+                     * secrets covers the E2EE case).
+                     */
                     $existingAccount = TwoFAccount::where('user_id', $user->id)
                         ->where('service', $accountData['service'] ?? 'Unknown')
                         ->where('account', $accountData['account'] ?? '')
@@ -228,11 +378,18 @@ class BackupService
                     } elseif (isset($accountData['group_id']) && isset($groupMapping[$accountData['group_id']])) {
                         $account->group_id = $groupMapping[$accountData['group_id']];
                     } else {
-                        $account->group_id = $accountData['group_id'] ?? null;
+                        // C6: an unmapped group_id belongs to another user (or
+                        // a group that failed to import) — never attach it raw.
+                        $account->group_id = null;
                     }
 
                     $account->save();
                     $imported++;
+                    $importedIds[] = $account->id;
+
+                    if ($account->encrypted) {
+                        $encryptedIds[] = $account->id;
+                    }
                 } catch (\Exception $e) {
                     $failed++;
                     $errors[] = [
@@ -243,8 +400,8 @@ class BackupService
                 }
             }
 
-            $user->last_backup_at = now();
-            $user->save();
+            // C13: an import is not a backup — last_backup_at is only set by
+            // real backup exports (BackupController::export / auto-backup).
 
             DB::commit();
 
@@ -254,6 +411,8 @@ class BackupService
                 'skipped' => $skipped,
                 'errors' => $errors,
                 'conflict_resolution' => $conflictResolution,
+                'imported_ids' => $importedIds,
+                'encrypted_ids' => $encryptedIds,
             ];
         } catch (\Exception $e) {
             DB::rollBack();
@@ -287,14 +446,21 @@ class BackupService
 
         $migrator = $this->resolveExternalMigrator($format);
         $migrationPayload = $this->extractExternalMigrationPayload($backupData, $format);
+        $this->lastFakeAccountCount = 0;
 
         $accounts = $migrator->migrate($migrationPayload)
             ->map(fn (TwoFAccount $account) => $this->mapMigratedAccountToArray($account))
+            ->filter(fn (?array $account) => $account !== null)
+            ->values()
             ->toArray();
 
         return [
             'accounts' => $accounts,
             'groups' => [],
+            // C7: migrator "fake error accounts" (FAKE_ID) are dropped and
+            // counted as failed in the import summary instead of being
+            // persisted as real rows with an exception message as secret.
+            'failed' => $this->lastFakeAccountCount,
         ];
     }
 
@@ -313,8 +479,14 @@ class BackupService
         return $migrationPayload;
     }
 
-    private function mapMigratedAccountToArray(TwoFAccount $account): array
+    private function mapMigratedAccountToArray(TwoFAccount $account): ?array
     {
+        if ($account->id === TwoFAccount::FAKE_ID) {
+            $this->lastFakeAccountCount++;
+
+            return null;
+        }
+
         return [
             'service' => $account->service,
             'account' => $account->account,
@@ -367,6 +539,11 @@ class BackupService
             return false;
         }
 
+        // RT4: undecrypted format 2 envelopes are never importable as-is.
+        if ($this->isUndecryptedV2Envelope($backupData)) {
+            return false;
+        }
+
         if ($this->isVaultFormat($format)) {
             return $this->validateBackupFile($backupData);
         }
@@ -384,12 +561,24 @@ class BackupService
 
     public function detectImportFormat(array $backupData): string
     {
+        // C2: the app's OWN exports (marker `app: "2FA-Vault"` — legacy v1
+        // envelope, decrypted v2 payload, anything) must route to the vault
+        // parser, never to the external TwoFAuth migrator (its `data` foreach
+        // iterates a base64 string and 422s generically).
         if (isset($backupData['app']) && $backupData['app'] === '2FA-Vault') {
-            return '2FA-Vault';
+            return 'vault';
         }
 
-        if (isset($backupData['format']) && $backupData['format'] === '2FA-Vault') {
+        if (isset($backupData['format']) && is_numeric($backupData['format'])) {
             return 'vault';
+        }
+
+        // Genuine 2FAuth app exports ("twofauth_vX.Y.Z" marker) go to the
+        // TwoFAuth migrator.
+        if (isset($backupData['app'], $backupData['data'])
+            && is_string($backupData['data'])
+            && str_starts_with((string) $backupData['app'], 'twofauth')) {
+            return '2FA-Vault';
         }
 
         if (isset($backupData['schemaVersion']) && isset($backupData['services'])) {
@@ -456,7 +645,7 @@ class BackupService
             : 'The backup file cannot be parsed with the selected format';
     }
 
-    private function isVaultFormat(string $format): bool
+    public function isVaultFormat(string $format): bool
     {
         return $this->normalizeImportFormat($format) === 'vault';
     }
@@ -596,6 +785,25 @@ class BackupService
      */
     public function getBackupMetadata(array $backupData): array
     {
+        // Format 2 envelopes are password-encrypted client-side: report
+        // envelope-level metadata only, without touching the ciphertext.
+        if ($this->isUndecryptedV2Envelope($backupData)) {
+            return [
+                'format' => (int) $backupData['format'],
+                'version' => $backupData['version'] ?? 'unknown',
+                'encrypted' => true,
+                'double_encrypted' => true,
+                'encryption_version' => 0,
+                'exported_at' => $backupData['datetime'] ?? null,
+                'account_count' => null,
+                'group_count' => null,
+                'user' => null,
+                'compatible' => true,
+                'has_encrypted_accounts' => null,
+                'requires_decryption' => true,
+            ];
+        }
+
         $normalized = $this->normalizeVaultBackupData($backupData);
         $accounts = $normalized['accounts'] ?? [];
         $groups = $normalized['groups'] ?? [];

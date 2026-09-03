@@ -13,7 +13,9 @@ class CleanupBackupFiles extends Command
 
     public function handle(): int
     {
-        $hours = (int) $this->option('hours');
+        // Clamp to >= 1 hour: 0, negative, or garbage values (e.g. a bogus
+        // BACKUP_RETENTION_HOURS) must never wipe ALL backups at once (C4).
+        $hours = max(1, (int) $this->option('hours'));
         $cutoff = now()->subHours($hours);
         $disk = Storage::disk('backups');
         $deleted = 0;

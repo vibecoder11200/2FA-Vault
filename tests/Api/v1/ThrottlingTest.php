@@ -29,7 +29,7 @@ class ThrottlingTest extends FeatureTestCase
 
         Config::set('2fauth.api.throttle', $throttle);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
 
         for ($i = 0; $i < $throttle; $i++) {
             $this->json('GET', '/api/v1/twofaccounts/count');
@@ -52,7 +52,7 @@ class ThrottlingTest extends FeatureTestCase
         Config::set('2fauth.api.throttle', $throttle);
         Config::set('2fauth.api.throttle', $throttlingStatus);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
 
         for ($i = 0; $i < $throttle; $i++) {
             $this->json('GET', '/api/v1/twofaccounts/count');
@@ -88,7 +88,7 @@ class ThrottlingTest extends FeatureTestCase
         Config::set('2fauth.api.throttle', $throttle);
         Config::set('2fauth.api.throttleImport', $throttleImport);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
 
         for ($i = 0; $i < $throttle; $i++) {
             $this->json('GET', '/api/v1/twofaccounts/count');
@@ -129,7 +129,7 @@ class ThrottlingTest extends FeatureTestCase
         Config::set('2fauth.api.throttle', $throttle);
         Config::set('2fauth.api.throttleImport', $throttleImport);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
 
         for ($i = 0; $i < $throttleImport; $i++) {
             $this->json('POST', '/api/v1/twofaccounts', [
@@ -163,7 +163,7 @@ class ThrottlingTest extends FeatureTestCase
         Config::set('2fauth.api.throttleImport', $throttleImport);
         Config::set('2fauth.api.throttleImport', null);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
 
         for ($i = 0; $i < $throttle; $i++) {
             $this->json('GET', '/api/v1/twofaccounts/count');
@@ -196,7 +196,7 @@ class ThrottlingTest extends FeatureTestCase
         Config::set('2fauth.api.throttle', $throttle);
         Config::set('2fauth.api.throttleImport', $throttleImport);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
 
         for ($i = 0; $i < $throttleImport + 1; $i++) {
             $this->json('POST', '/api/v1/twofaccounts', [

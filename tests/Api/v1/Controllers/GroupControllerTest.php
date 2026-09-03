@@ -95,7 +95,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_index_returns_user_groups_only_with_pseudo_group()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/groups')
             ->assertOk()
@@ -152,7 +152,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_store_returns_created_group_resource()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('POST', '/api/v1/groups', [
                 'name' => self::NEW_GROUP_NAME,
@@ -172,7 +172,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_store_with_existing_group_name_returns_validation_error()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('POST', '/api/v1/groups', [
                 'name' => $this->userGroupA->name,
@@ -183,7 +183,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_store_with_all_group_name_returns_validation_error()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('POST', '/api/v1/groups', [
                 'name' => __('label.all'),
@@ -194,7 +194,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_store_invalid_data_returns_validation_error()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('POST', '/api/v1/groups', [
                 'name' => null,
@@ -209,7 +209,7 @@ class GroupControllerTest extends FeatureTestCase
             'name' => 'My group',
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/groups/' . $group->id)
             ->assertOk()
@@ -222,7 +222,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_show_missing_group_returns_not_found()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/groups/1000')
             ->assertNotFound()
@@ -234,7 +234,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_show_group_of_another_user_is_forbidden()
     {
-        Passport::actingAs($this->anotherUser, [], 'api-guard');
+        Passport::actingAs($this->anotherUser, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/groups/' . $this->userGroupA->id)
             ->assertForbidden()
@@ -248,7 +248,7 @@ class GroupControllerTest extends FeatureTestCase
     {
         $userTwofaccounts = $this->user->twofaccounts;
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/groups/0')
             ->assertOk()
@@ -263,7 +263,7 @@ class GroupControllerTest extends FeatureTestCase
     {
         $group = Group::factory()->for($this->user)->create();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('PUT', '/api/v1/groups/' . $group->id, [
                 'name' => 'name updated',
@@ -278,7 +278,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_update_missing_group_returns_not_found()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('PUT', '/api/v1/groups/1000', [
                 'name' => 'testUpdate',
@@ -294,7 +294,7 @@ class GroupControllerTest extends FeatureTestCase
     {
         $group = Group::factory()->for($this->user)->create();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('PUT', '/api/v1/groups/' . $group->id, [
                 'name' => null,
@@ -305,7 +305,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_update_group_of_another_user_is_forbidden()
     {
-        Passport::actingAs($this->anotherUser, [], 'api-guard');
+        Passport::actingAs($this->anotherUser, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('PUT', '/api/v1/groups/' . $this->userGroupA->id, [
                 'name' => 'name updated',
@@ -322,7 +322,7 @@ class GroupControllerTest extends FeatureTestCase
         $group    = Group::factory()->for($this->user)->create();
         $accounts = TwoFAccount::factory()->count(2)->for($this->user)->create();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/groups/' . $group->id . '/assign', [
                 'ids' => [$accounts[0]->id, $accounts[1]->id],
@@ -340,7 +340,7 @@ class GroupControllerTest extends FeatureTestCase
     {
         $accounts = TwoFAccount::factory()->count(2)->for($this->user)->create();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/groups/1000/assign', [
                 'ids' => [$accounts[0]->id, $accounts[1]->id],
@@ -357,7 +357,7 @@ class GroupControllerTest extends FeatureTestCase
         $group    = Group::factory()->for($this->user)->create();
         $accounts = TwoFAccount::factory()->count(2)->for($this->user)->create();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/groups/' . $group->id . '/assign', [
                 'ids' => 1,
@@ -368,7 +368,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_assign_to_group_of_another_user_is_forbidden()
     {
-        Passport::actingAs($this->anotherUser, [], 'api-guard');
+        Passport::actingAs($this->anotherUser, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/groups/' . $this->userGroupA->id . '/assign', [
                 'ids' => [$this->twofaccountC->id, $this->twofaccountD->id],
@@ -382,7 +382,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_assign_accounts_of_another_user_is_forbidden()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/groups/' . $this->userGroupA->id . '/assign', [
                 'ids' => [$this->twofaccountC->id, $this->twofaccountD->id],
@@ -396,7 +396,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_reorder_returns_success()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/groups/reorder', [
                 'orderedIds' => [$this->userGroupB->id, $this->userGroupA->id],
@@ -417,7 +417,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_reorder_with_invalid_data_returns_validation_error()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/groups/reorder', [
                 'orderedIds' => '3,2,1',
@@ -428,7 +428,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_reorder_groups_of_another_user_is_forbidden()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/groups/reorder', [
                 'orderedIds' => [$this->anotherUserGroupB->id, $this->anotherUserGroupA->id],
@@ -442,7 +442,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_accounts_returns_twofaccounts_collection()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/groups/' . $this->userGroupA->id . '/twofaccounts')
             ->assertOk()
@@ -471,7 +471,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_accounts_returns_twofaccounts_collection_with_secret()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/groups/' . $this->userGroupA->id . '/twofaccounts?withSecret=1')
             ->assertOk()
@@ -495,7 +495,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_accounts_of_missing_group_returns_not_found()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/groups/1000/twofaccounts')
             ->assertNotFound()
@@ -507,7 +507,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_accounts_of_another_user_group_is_forbidden()
     {
-        Passport::actingAs($this->anotherUser, [], 'api-guard');
+        Passport::actingAs($this->anotherUser, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/groups/' . $this->userGroupA->id . '/twofaccounts')
             ->assertForbidden()
@@ -519,7 +519,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_accounts_of_the_all_group_returns_user_twofaccounts_collection()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/groups/0/twofaccounts')
             ->assertOk()
@@ -534,7 +534,7 @@ class GroupControllerTest extends FeatureTestCase
     {
         $group = Group::factory()->for($this->user)->create();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/groups/' . $group->id)
             ->assertNoContent();
@@ -546,7 +546,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_destroy_missing_group_returns_not_found()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/groups/1000')
             ->assertNotFound()
@@ -558,7 +558,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_destroy_group_of_another_user_is_forbidden()
     {
-        Passport::actingAs($this->anotherUser, [], 'api-guard');
+        Passport::actingAs($this->anotherUser, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('DELETE', '/api/v1/groups/' . $this->userGroupA->id)
             ->assertForbidden()
@@ -570,7 +570,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_destroy_the_all_group_is_forbidden()
     {
-        Passport::actingAs($this->anotherUser, [], 'api-guard');
+        Passport::actingAs($this->anotherUser, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('DELETE', '/api/v1/groups/0')
             ->assertForbidden()
@@ -591,7 +591,7 @@ class GroupControllerTest extends FeatureTestCase
         $this->assertEquals($this->userGroupA->id, $this->user->preferences['defaultGroup']);
         $this->assertEquals($this->userGroupA->id, $this->user->preferences['activeGroup']);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/groups/' . $this->userGroupA->id);
 
@@ -604,7 +604,7 @@ class GroupControllerTest extends FeatureTestCase
     #[Test]
     public function test_twofaccount_is_released_on_group_destroy()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/groups/' . $this->userGroupA->id)
             ->assertNoContent();

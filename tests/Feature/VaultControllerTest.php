@@ -28,7 +28,7 @@ class VaultControllerTest extends TestCase
         $user  = $this->createEncryptedUser();
         $vault = Vault::factory()->for($user)->create(['name' => 'My Vault']);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->getJson('/api/v1/vaults');
 
         $response->assertStatus(200)
@@ -40,7 +40,7 @@ class VaultControllerTest extends TestCase
     {
         $user = $this->createEncryptedUser();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->postJson('/api/v1/vaults', [
             'name' => 'New Vault',
         ]);
@@ -59,7 +59,7 @@ class VaultControllerTest extends TestCase
         $user = $this->createEncryptedUser();
         Vault::factory()->count(10)->for($user)->create();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->postJson('/api/v1/vaults', [
             'name' => 'Vault Eleven',
         ]);
@@ -72,7 +72,7 @@ class VaultControllerTest extends TestCase
         $user  = $this->createEncryptedUser();
         $vault = Vault::factory()->for($user)->create(['name' => 'Old Name']);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->putJson("/api/v1/vaults/{$vault->id}", [
             'name' => 'Renamed Vault',
         ]);
@@ -91,7 +91,7 @@ class VaultControllerTest extends TestCase
         $user  = $this->createEncryptedUser();
         $vault = Vault::factory()->for($user)->create(['is_default' => true]);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->deleteJson("/api/v1/vaults/{$vault->id}");
 
         $response->assertStatus(422);
@@ -103,7 +103,7 @@ class VaultControllerTest extends TestCase
         $user  = $this->createEncryptedUser();
         $vault = Vault::factory()->for($user)->create(['is_default' => false]);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->deleteJson("/api/v1/vaults/{$vault->id}");
 
         $response->assertStatus(204);
@@ -116,7 +116,7 @@ class VaultControllerTest extends TestCase
         $otherUser = $this->createEncryptedUser();
         $vault     = Vault::factory()->for($owner)->create();
 
-        Passport::actingAs($otherUser, [], 'api-guard');
+        Passport::actingAs($otherUser, ['legacy_full_access'], 'api-guard');
         $response = $this->putJson("/api/v1/vaults/{$vault->id}", [
             'name' => 'Hijacked Name',
         ]);
@@ -133,10 +133,60 @@ class VaultControllerTest extends TestCase
         $user  = $this->createEncryptedUser();
         $vault = Vault::factory()->for($user)->create(['is_locked' => false]);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->postJson("/api/v1/vaults/{$vault->id}/lock");
 
         $response->assertStatus(200);
         $this->assertTrue($vault->fresh()->is_locked);
+    }
+
+    public function test_setup_encryption_refuses_when_already_configured() : void
+    {
+        $user = $this->createEncryptedUser();
+
+        // B11: overwriting the salt would brick every secret encrypted under
+        // the previous key.
+        $vault = Vault::factory()->create([
+            'user_id'              => $user->id,
+            'encryption_salt'      => 'first-salt',
+            'encryption_test_value' => 'first-test-value',
+            'is_default'           => false,
+        ]);
+
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
+        $this
+            ->postJson("/api/v1/vaults/{$vault->id}/encryption", [
+                'salt'       => 'second-salt',
+                'test_value' => 'second-test-value',
+            ])
+            ->assertStatus(409);
+
+        $this->assertDatabaseHas('vaults', [
+            'id'              => $vault->id,
+            'encryption_salt' => 'first-salt',
+        ]);
+    }
+
+    public function test_user_can_unlock_locked_vault() : void
+    {
+        $user = $this->createEncryptedUser();
+
+        // B11: the unlock service method previously had no route.
+        $vault = Vault::factory()->create([
+            'user_id'    => $user->id,
+            'is_locked'  => true,
+            'is_default' => false,
+        ]);
+
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
+        $this
+            ->postJson("/api/v1/vaults/{$vault->id}/unlock")
+            ->assertStatus(200)
+            ->assertJsonFragment(['message' => 'Vault unlocked']);
+
+        $this->assertDatabaseHas('vaults', [
+            'id'        => $vault->id,
+            'is_locked' => false,
+        ]);
     }
 }

@@ -25,14 +25,22 @@
     const editingId = ref(null)
     const testingId = ref(null)
 
+    // Config keys MUST match the backend contract
+    // (StoreBackupDestinationRequest / BackupDestinationService).
     const emptyForm = () => ({
         label: '',
         type: 's3',
         is_active: true,
         config: {
-            endpoint: '', bucket: '', key: '', secret: '', prefix: '',
-            url: '', user: '', pass: '', path: '',
-            address: '',
+            endpoint: '', bucket: '', access_key: '', secret_key: '', region: '', prefix: '',
+            url: '', username: '', password: '', path: '',
+            email: '',
+            // C1 (F3): per-destination backup encryption password — backups
+            // pushed to this destination are AES-256-GCM encrypted with it.
+            encryption_password: '',
+            // Email destinations must explicitly opt in to attachments
+            // (AutoBackupJob only ever attaches encrypted envelopes).
+            email_attachments: false,
         },
     })
     const form = reactive(emptyForm())
@@ -92,11 +100,19 @@
 
     function openEdit(d) {
         editingId.value = d.id
+        // The API returns a masked payload (config_summary, no secrets):
+        // secret fields stay blank and mean "keep the stored value" (the
+        // backend merges partial configs on update).
         Object.assign(form, {
             label: d.label || '',
             type: d.type || 's3',
             is_active: d.is_active !== false,
-            config: { ...(emptyForm().config), ...(d.config || {}) },
+            config: {
+                ...(emptyForm().config),
+                ...(d.config_summary || {}),
+                encryption_password: '',
+                email_attachments: !!(d.config_summary && d.config_summary.email_attachments),
+            },
         })
         showEditor.value = true
     }
@@ -217,6 +233,11 @@
                     <span class="tag ml-2 is-size-7" :class="d.is_active !== false ? 'is-success is-light' : 'is-light'">
                         {{ d.is_active !== false ? $t('label.active') : $t('label.inactive') }}
                     </span>
+                    <!-- C1: destinations without a backup encryption password
+                         still receive legacy (unencrypted) envelopes — warn. -->
+                    <span v-if="d.is_active !== false && !d.has_encryption_password" class="tag ml-2 is-size-7 is-warning is-light">
+                        {{ $t('settings.backup.warning_destination_unencrypted') }}
+                    </span>
                 </div>
                 <div class="buttons are-small">
                     <VueButton class="button is-info is-light" :isLoading="testingId === d.id" @click="testDestination(d)">
@@ -254,25 +275,44 @@
                     <template v-if="form.type === 's3'">
                         <div class="field"><label class="label is-size-7">{{ $t('field.s3_endpoint') }}</label><input class="input" v-model="form.config.endpoint" /></div>
                         <div class="field"><label class="label is-size-7">{{ $t('field.s3_bucket') }}</label><input class="input" v-model="form.config.bucket" /></div>
-                        <div class="field"><label class="label is-size-7">{{ $t('field.s3_key') }}</label><input class="input" v-model="form.config.key" /></div>
-                        <div class="field"><label class="label is-size-7">{{ $t('field.s3_secret') }}</label><input class="input" type="password" v-model="form.config.secret" /></div>
+                        <div class="field"><label class="label is-size-7">{{ $t('field.s3_key') }}</label><input class="input" v-model="form.config.access_key" :placeholder="editingId ? t('field.secret_unchanged') : ''" /></div>
+                        <div class="field"><label class="label is-size-7">{{ $t('field.s3_secret') }}</label><input class="input" type="password" v-model="form.config.secret_key" :placeholder="editingId ? t('field.secret_unchanged') : ''" /></div>
                         <div class="field"><label class="label is-size-7">{{ $t('field.s3_prefix') }}</label><input class="input" v-model="form.config.prefix" /></div>
                     </template>
                     <!-- WebDAV -->
                     <template v-else-if="form.type === 'webdav'">
                         <div class="field"><label class="label is-size-7">{{ $t('field.webdav_url') }}</label><input class="input" v-model="form.config.url" /></div>
-                        <div class="field"><label class="label is-size-7">{{ $t('field.webdav_user') }}</label><input class="input" v-model="form.config.user" /></div>
-                        <div class="field"><label class="label is-size-7">{{ $t('field.webdav_pass') }}</label><input class="input" type="password" v-model="form.config.pass" /></div>
+                        <div class="field"><label class="label is-size-7">{{ $t('field.webdav_user') }}</label><input class="input" v-model="form.config.username" :placeholder="editingId ? t('field.secret_unchanged') : ''" /></div>
+                        <div class="field"><label class="label is-size-7">{{ $t('field.webdav_pass') }}</label><input class="input" type="password" v-model="form.config.password" :placeholder="editingId ? t('field.secret_unchanged') : ''" /></div>
                         <div class="field"><label class="label is-size-7">{{ $t('field.webdav_path') }}</label><input class="input" v-model="form.config.path" /></div>
                     </template>
                     <!-- Email -->
                     <template v-else-if="form.type === 'email'">
-                        <div class="field"><label class="label is-size-7">{{ $t('field.email_address') }}</label><input class="input" type="email" v-model="form.config.address" /></div>
+                        <div class="field"><label class="label is-size-7">{{ $t('field.email_address') }}</label><input class="input" type="email" v-model="form.config.email" /></div>
+                        <div class="field">
+                            <label class="checkbox">
+                                <input type="checkbox" v-model="form.config.email_attachments" />
+                                {{ $t('field.email_attachments') }}
+                            </label>
+                            <p class="help">{{ $t('field.email_attachments.help') }}</p>
+                        </div>
                     </template>
                     <!-- Local -->
                     <template v-else-if="form.type === 'local'">
                         <div class="field"><label class="label is-size-7">{{ $t('field.local_path') }}</label><input class="input" v-model="form.config.path" /></div>
                     </template>
+
+                    <!-- Per-destination backup encryption password (all types) -->
+                    <div class="field">
+                        <label class="label is-size-7">{{ $t('field.backup_encryption_password') }}</label>
+                        <input
+                            class="input"
+                            type="password"
+                            v-model="form.config.encryption_password"
+                            :placeholder="editingId ? t('field.secret_unchanged') : ''"
+                        />
+                        <p class="help">{{ $t('field.backup_encryption_password.help') }}</p>
+                    </div>
 
                     <div class="field">
                         <label class="checkbox">

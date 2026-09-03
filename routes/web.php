@@ -77,18 +77,23 @@ Route::group(['middleware' => ['forceLogout', 'throttle:10,1']], function () {
  * guard is enabled
  */
 Route::group(['middleware' => ['behind-auth', 'rejectIfReverseProxy']], function () {
-    Route::put('user', [UserController::class, 'update'])->name('user.update');
-    Route::patch('user/password', [PasswordController::class, 'update'])->name('user.password.update')->middleware('rejectIfDemoMode');
-    Route::get('user/logout', [LoginController::class, 'logout'])->name('user.logout');
+    Route::put('user', [UserController::class, 'update'])->name('user.update')->middleware('throttle:user-mutations');
+    Route::patch('user/password', [PasswordController::class, 'update'])->name('user.password.update')->middleware('rejectIfDemoMode', 'throttle:5,1');
+    // A10: logout is POST + CSRF-protected. The SPA caller is switched in a
+    // later phase; the legacy GET route below answers 410 in the meantime.
+    Route::post('user/logout', [LoginController::class, 'logout'])->name('user.logout');
+    Route::get('user/logout', function () {
+        return response()->json(['message' => 'Logout must be requested using POST.'], 410);
+    })->name('user.logout.deprecated');
     Route::delete('user', [UserController::class, 'delete'])->name('user.delete')->middleware('rejectIfDemoMode');
 
     // Following routes are also forbidden to regular users when "SSO only" is enabled, but using Authorization gates
-    Route::get('oauth/personal-access-tokens', [PersonalAccessTokenController::class, 'forUser'])->name('passport.personal.tokens.index');
-    Route::post('oauth/personal-access-tokens', [PersonalAccessTokenController::class, 'store'])->name('passport.personal.tokens.store');
-    Route::delete('oauth/personal-access-tokens/{token_id}', [PersonalAccessTokenController::class, 'destroy'])->name('passport.personal.tokens.destroy');
+    Route::get('oauth/personal-access-tokens', [PersonalAccessTokenController::class, 'forUser'])->name('passport.personal.tokens.index')->middleware('throttle:10,1');
+    Route::post('oauth/personal-access-tokens', [PersonalAccessTokenController::class, 'store'])->name('passport.personal.tokens.store')->middleware('throttle:10,1');
+    Route::delete('oauth/personal-access-tokens/{token_id}', [PersonalAccessTokenController::class, 'destroy'])->name('passport.personal.tokens.destroy')->middleware('throttle:10,1');
 
-    Route::post('webauthn/register/options', [WebAuthnRegisterController::class, 'options'])->name('webauthn.register.options');
-    Route::post('webauthn/register', [WebAuthnRegisterController::class, 'register'])->name('webauthn.register');
+    Route::post('webauthn/register/options', [WebAuthnRegisterController::class, 'options'])->name('webauthn.register.options')->middleware('throttle:10,1');
+    Route::post('webauthn/register', [WebAuthnRegisterController::class, 'register'])->name('webauthn.register')->middleware('throttle:10,1');
     Route::get('webauthn/credentials', [WebAuthnManageController::class, 'index'])->name('webauthn.credentials.index');
     Route::patch('webauthn/credentials/{credential}/name', [WebAuthnManageController::class, 'rename'])->name('webauthn.credentials.rename');
     Route::delete('webauthn/credentials/{credential}', [WebAuthnManageController::class, 'delete'])->name('webauthn.credentials.delete');
@@ -114,7 +119,7 @@ Route::get('refresh-csrf', function (Request $request) {
         'Cache-Control' => 'no-store, no-cache, must-revalidate',
         'Pragma'        => 'no-cache',
     ]);
-});
+})->middleware('throttle:30,1');
 
 /**
  * Prometheus metrics endpoint
@@ -122,7 +127,7 @@ Route::get('refresh-csrf', function (Request $request) {
  */
 Route::get('/metrics', [MetricsController::class, 'index'])
     ->name('metrics')
-    ->middleware(MetricsAuthMiddleware::class);
+    ->middleware(MetricsAuthMiddleware::class, 'throttle:10,1');
 
 Route::withoutMiddleware([
     StartSession::class,

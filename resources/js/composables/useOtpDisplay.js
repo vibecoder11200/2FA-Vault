@@ -102,6 +102,12 @@ export function useOtpDisplay(options = {}) {
                     }
                 })
             }
+        }).catch(error => {
+            // E3: one failed rotation fetch used to leave every dots controller
+            // stopped (never re-armed) — retry once shortly, then give up with a
+            // notice so codes visibly stop instead of silently freezing.
+            console.error('OTP rotation fetch failed', error)
+            setTimeout(() => { updateTotps(period).catch(() => notify.info({ text: t('notification.otp_refresh_failed') })) }, 3000)
         }).finally(() => {
             if (renewedPeriod) renewedPeriod.value = null
         })
@@ -128,7 +134,10 @@ export function useOtpDisplay(options = {}) {
         if (bus.inManagementMode) {
             twofaccounts.select(account.id)
         } else {
-            if (!user.preferences.getOtpOnRequest && account.otp_type.includes('totp')) {
+            // E2: the account may not carry an otp payload yet (freshly
+            // created/updated/imported push without withOtp) — fall back to
+            // the modal fetch instead of crashing on `.password`.
+            if (!user.preferences.getOtpOnRequest && account.otp_type.includes('totp') && account.otp?.password) {
                 copyToClipboard(account.otp.password)
             } else {
                 showOTP(account)
@@ -141,7 +150,8 @@ export function useOtpDisplay(options = {}) {
      */
     function copyToClipboard(password) {
         copy(password)
-        if (copied) {
+        // E9: `copied` is a Ref (vueuse) — test its value, not the wrapper.
+        if (copied.value) {
             if (user.preferences.kickUserAfter == -1) { user.logout({ kicked: true }) }
             if (user.preferences.clearSearchOnCopy) { twofaccounts.filter = '' }
             if (user.preferences.viewDefaultGroupOnCopy) {
@@ -164,6 +174,10 @@ export function useOtpDisplay(options = {}) {
                 let hotpToIncrement = twofaccounts.items.find((acc) => acc.id == account.id)
                 if (hotpToIncrement != undefined) { hotpToIncrement.counter = otp.counter }
             }
+        }).catch(() => {
+            // E10 fallout guard: the interceptor now rejects on 404/500 —
+            // surface a notice instead of an unhandled rejection.
+            notify.warn({ text: t('notification.otp_refresh_failed') })
         })
     }
 

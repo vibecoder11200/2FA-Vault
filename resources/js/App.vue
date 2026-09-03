@@ -2,6 +2,10 @@
     import { RouterView } from 'vue-router'
     import { Kicker } from '@2fauth/ui'
     import { useCryptoStore } from '@/stores/crypto'
+    import { useBusStore } from '@/stores/bus'
+    import UpdatePrompt from '@/components/UpdatePrompt.vue'
+    import OfflineIndicator from '@/components/OfflineIndicator.vue'
+    import PwaInstallPrompt from '@/components/PwaInstallPrompt.vue'
 
     const { t } = useI18n()
     const { language } = useNavigatorLanguage()
@@ -37,12 +41,58 @@
         const accounts = useTwofaccounts()
         accounts.$reset()
 
+        // E8: scrub everything that still holds plaintext while the vault is
+        // now locked — otpauth URIs carry the raw secret, an open OTP modal
+        // shows the last code, and the offline service caches derived keys.
+        const bus = useBusStore()
+        bus.decodedUri = null
+        bus.migrationUri = null
+        bus.inManagementMode = false
+
+        try {
+            const { default: offlineTotp } = await import('@/services/offline-totp.js')
+            offlineTotp.lockVault()
+        } catch (error) {
+            console.debug('offline totp lock skipped', error)
+        }
+
+        // Signal views (e.g. Accounts closes an open OTP modal) via the bus.
+        bus.vaultLockedAt = Date.now()
+
         try {
             const { default: httpClientFactory } = await import('@/services/httpClientFactory')
             await httpClientFactory('api').post('/encryption/lock')
         } catch (error) {
             console.debug('Vault lock sync failed', error)
         }
+    }
+
+    /**
+     * E8: fire-and-forget lock POST that survives page tear-down (the axios
+     * call above is usually dropped mid-unload). Same-origin fetch with
+     * keepalive carries the session cookies; CSRF header mirrors the SPA one.
+     */
+    function sendLockBeacon() {
+        try {
+            const xsrf = document.cookie.match(/XSRF-TOKEN=([^;]+)/)
+            const baseUrl = import.meta.env.BASE_URL ?? '/'
+            fetch(baseUrl.replace(/\/$/, '') + '/api/v1/encryption/lock', {
+                method: 'POST',
+                keepalive: true,
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    ...(xsrf ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrf[1]) } : {}),
+                },
+            }).catch(() => {})
+        } catch (error) {
+            console.debug('lock beacon failed', error)
+        }
+    }
+
+    function onUnloadLock(unloadEvent) {
+        lockVaultSession()
+        sendLockBeacon()
     }
 
     function scheduleVaultAutoLock() {
@@ -135,7 +185,10 @@
         window.addEventListener('keydown', registerVaultActivity)
         window.addEventListener('mousemove', registerVaultActivity)
         window.addEventListener('scroll', registerVaultActivity, true)
-        window.addEventListener('beforeunload', lockVaultSession)
+        // E8: pagehide keeps firing reliably during tab tear-down where
+        // beforeunload async work (the lock POST) is usually dropped.
+        window.addEventListener('pagehide', onUnloadLock)
+        window.addEventListener('beforeunload', onUnloadLock)
     })
 
     onUnmounted(() => {
@@ -144,7 +197,8 @@
         window.removeEventListener('keydown', registerVaultActivity)
         window.removeEventListener('mousemove', registerVaultActivity)
         window.removeEventListener('scroll', registerVaultActivity, true)
-        window.removeEventListener('beforeunload', lockVaultSession)
+        window.removeEventListener('pagehide', onUnloadLock)
+        window.removeEventListener('beforeunload', onUnloadLock)
     })
 
     router.afterEach((to, from) => {
@@ -170,6 +224,10 @@
     <main id="main-content" class="main-section" role="main" tabindex="-1">
         <RouterView />
     </main>
+    <!-- E4: PWA layer wired — update consent, offline badge, install prompt -->
+    <UpdatePrompt />
+    <OfflineIndicator />
+    <PwaInstallPrompt />
     <Kicker
         v-if="mustKick && kickUserAfter > 0 && isProtectedRoute"
         :kickAfter="kickUserAfter"

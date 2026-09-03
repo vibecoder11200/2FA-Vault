@@ -80,9 +80,14 @@ class Team extends Model
      */
     public function scopeAccessibleByUser($query, $userId)
     {
-        return $query->whereHas('users', function ($q) use ($userId) {
-            $q->where('users.id', $userId);
-        })->orWhere('owner_id', $userId);
+        // B14: group the orWhere in a closure so the SoftDeletes global scope
+        // (whereNull deleted_at) still applies to the whole query — an ungrouped
+        // orWhere('owner_id') made soft-deleted teams match for their owner.
+        return $query->where(function ($q) use ($userId) {
+            $q->whereHas('users', function ($sq) use ($userId) {
+                $sq->where('users.id', $userId);
+            })->orWhere('owner_id', $userId);
+        });
     }
 
     /**

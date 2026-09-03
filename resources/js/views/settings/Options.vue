@@ -259,7 +259,13 @@
     async function togglePushNotifications(enabled) {
         if (enabled) {
             try {
-                const swReg = await navigator.serviceWorker.ready
+                // E4: `serviceWorker.ready` never resolves when the SW is not
+                // registered (or failed) — race it with a timeout instead of
+                // hanging the toggle forever.
+                const swReg = await Promise.race([
+                    navigator.serviceWorker.ready,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('service worker not ready')), 5000)),
+                ])
                 await pushNotifications.init(swReg)
                 await pushNotifications.subscribe()
                 pushEnabled.value = true

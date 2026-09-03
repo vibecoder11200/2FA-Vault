@@ -87,7 +87,7 @@ class TeamActivityControllerTest extends TestCase
     {
         $this->seedActivityLogs();
 
-        Passport::actingAs($this->owner, [], 'api-guard');
+        Passport::actingAs($this->owner, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson("/api/v1/teams/{$this->team->id}/activity");
 
@@ -108,7 +108,7 @@ class TeamActivityControllerTest extends TestCase
     {
         $this->seedActivityLogs();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson("/api/v1/teams/{$this->team->id}/activity");
 
@@ -123,7 +123,7 @@ class TeamActivityControllerTest extends TestCase
     {
         $this->seedActivityLogs();
 
-        Passport::actingAs($this->member, [], 'api-guard');
+        Passport::actingAs($this->member, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson("/api/v1/teams/{$this->team->id}/activity");
 
@@ -137,7 +137,7 @@ class TeamActivityControllerTest extends TestCase
     {
         $this->seedActivityLogs();
 
-        Passport::actingAs($this->outsider, [], 'api-guard');
+        Passport::actingAs($this->outsider, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson("/api/v1/teams/{$this->team->id}/activity");
 
@@ -152,7 +152,7 @@ class TeamActivityControllerTest extends TestCase
         $this->seedActivityLogs();
 
         // Filter for member.invited only
-        Passport::actingAs($this->owner, [], 'api-guard');
+        Passport::actingAs($this->owner, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson("/api/v1/teams/{$this->team->id}/activity?actions=member.invited");
 
@@ -161,7 +161,7 @@ class TeamActivityControllerTest extends TestCase
         $response->assertJsonPath('data.0.action', 'member.invited');
 
         // Filter for multiple actions
-        Passport::actingAs($this->owner, [], 'api-guard');
+        Passport::actingAs($this->owner, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson("/api/v1/teams/{$this->team->id}/activity?actions=team.created,account.shared");
 
@@ -180,14 +180,14 @@ class TeamActivityControllerTest extends TestCase
         $this->seedActivityLogs();
 
         // Admin cannot export (no stream involved — 403 returned before streamDownload)
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->getJson("/api/v1/teams/{$this->team->id}/activity/export");
 
         $response->assertStatus(403);
 
         // Owner can export — bypass CSP middleware for StreamedResponse compatibility
-        Passport::actingAs($this->owner, [], 'api-guard');
+        Passport::actingAs($this->owner, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->withoutMiddleware(\App\Http\Middleware\AddContentSecurityPolicyHeaders::class)
             ->getJson("/api/v1/teams/{$this->team->id}/activity/export");

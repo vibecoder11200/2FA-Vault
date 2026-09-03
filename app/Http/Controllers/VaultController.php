@@ -61,9 +61,26 @@ class VaultController extends Controller
         return response()->json(['message' => 'Vault locked']);
     }
 
+    public function unlock(int $id): JsonResponse
+    {
+        $vault = Auth::user()->vaults()->findOrFail($id);
+        $this->service->unlock($vault);
+        return response()->json(['message' => 'Vault unlocked']);
+    }
+
     public function setupEncryption(Request $request, int $id): JsonResponse
     {
         $vault = Auth::user()->vaults()->findOrFail($id);
+
+        // B11: refuse when encryption is already configured — blindly
+        // overwriting the salt would brick every secret encrypted under the
+        // previous key (same guard as the user-level EncryptionService).
+        if ($vault->encryption_salt !== null) {
+            return response()->json([
+                'message' => 'Encryption is already configured for this vault',
+            ], 409);
+        }
+
         $validated = $request->validate([
             'salt'       => 'required|string',
             'test_value' => 'required|string',

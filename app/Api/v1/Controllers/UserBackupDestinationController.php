@@ -53,10 +53,18 @@ class UserBackupDestinationController extends Controller
         $destination = $this->findOwned($request, $id);
         $data = $request->validated();
 
+        // index()/show() never return raw credentials (masked payloads), so
+        // an edit round-trip submits a partial config: merge it over the
+        // stored one instead of replacing it (empty/null values keep the
+        // stored secret; booleans like email_attachments pass through so an
+        // opt-in can also be turned OFF).
+        $submitted = array_filter($data['config'] ?? [], fn ($value) => $value !== null && $value !== '');
+        $config = array_merge($destination->config ?? [], $submitted);
+
         $destination->update([
             'label'     => $data['label'] ?? $destination->label,
             'type'      => $data['type'] ?? $destination->type,
-            'config'    => $data['config'] ?? $destination->config,
+            'config'    => $config,
             'is_active' => array_key_exists('is_active', $data) ? $data['is_active'] : $destination->is_active,
         ]);
 
@@ -104,7 +112,10 @@ class UserBackupDestinationController extends Controller
             'last_run_status'=> $d->last_run_status,
             'created_at'     => $d->created_at?->toIso8601String(),
             // Masked summary only — secrets are intentionally omitted
-            'config_summary' => $this->configSummary($d),
+            'config_summary'        => $this->configSummary($d),
+            // C1: lets the UI warn about destinations still pushing legacy
+            // (unencrypted) envelopes.
+            'has_encryption_password' => !empty(($d->config ?? [])['encryption_password']),
         ];
     }
 
@@ -121,7 +132,10 @@ class UserBackupDestinationController extends Controller
                 'prefix'   => $config['prefix'] ?? null,
             ],
             'webdav' => ['url' => $config['url'] ?? null, 'path' => $config['path'] ?? null],
-            'email'  => ['email' => $config['email'] ?? null],
+            'email'  => [
+                'email'             => $config['email'] ?? null,
+                'email_attachments' => (bool) ($config['email_attachments'] ?? false),
+            ],
             default  => [],
         };
     }

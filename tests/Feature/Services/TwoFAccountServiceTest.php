@@ -201,7 +201,7 @@ class TwoFAccountServiceTest extends FeatureTestCase
     #[Test]
     public function test_migrate_from_gauth_returns_flagged_duplicates()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
 
         $parameters = [
             'service'   => OtpTestData::SERVICE,

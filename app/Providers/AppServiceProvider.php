@@ -50,6 +50,26 @@ class AppServiceProvider extends ServiceProvider
         // the check to avoid false positives.
         Passport::$validateKeyPermissions = false;
 
+        // PAT scopes (A6). New personal access tokens must carry at least one
+        // of these scopes (enforced by PersonalAccessTokenController::store()
+        // and the `pat.scopes` route middleware). Pre-cutover tokens were
+        // stamped with the `legacy_full_access` marker by a one-time
+        // migration; ONLY that explicit marker grants full access — a plain
+        // empty scope set is NOT trusted (Passport defaults omitted scopes
+        // to [], which would otherwise allow minting "legacy" tokens).
+        Passport::tokensCan([
+            'read'  => 'Read accounts, groups, preferences and other vault data',
+            'otp'   => 'Generate one-time passwords and read OTP-related data',
+            'write' => 'Create, update and delete vault data and preferences',
+            'admin' => 'Perform administrative operations',
+        ]);
+
+        // Personal access tokens no longer live for a year by default.
+        // Eager form: this Passport version's signature does not accept a
+        // closure, and the app boots per-request (PHP-FPM), so boot-time
+        // evaluation is fine. Revisit if moving to Octane/long-lived workers.
+        Passport::personalAccessTokensExpireIn(now()->addDays(90));
+
         $this->commands([
             InstallCommand::class,
             ClientCommand::class,
@@ -95,6 +115,11 @@ class AppServiceProvider extends ServiceProvider
                 'userName' => $config['userName'] ?? '',
                 'password' => $config['password'] ?? '',
             ]);
+
+            // C11: bound request timings so a hung WebDAV endpoint cannot
+            // burn the whole auto-backup job timeout.
+            $client->addCurlSetting(CURLOPT_TIMEOUT, (int) ($config['timeout'] ?? 60));
+            $client->addCurlSetting(CURLOPT_CONNECTTIMEOUT, (int) ($config['connect_timeout'] ?? 10));
 
             $adapter = new \League\Flysystem\WebDAV\WebDAVAdapter(
                 $client,

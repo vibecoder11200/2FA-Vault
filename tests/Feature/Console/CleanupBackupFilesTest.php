@@ -129,4 +129,60 @@ class CleanupBackupFilesTest extends FeatureTestCase
         $this->assertFalse($disk->exists('five-hour.vault'));
         $this->assertTrue($disk->exists('three-hour.vault'));
     }
+
+    /**
+     * C4: --hours=0 must clamp to 1 hour instead of wiping ALL backups.
+     */
+    #[Test]
+    public function test_cleanup_with_zero_hours_clamps_to_one_hour(): void
+    {
+        $disk = Storage::disk('backups');
+
+        $disk->put('half-hour.vault', 'content');
+        touch($disk->path('half-hour.vault'), now()->subMinutes(30)->timestamp);
+        $disk->put('two-hour.vault', 'content');
+        touch($disk->path('two-hour.vault'), now()->subHours(2)->timestamp);
+
+        $this->artisan('backup:cleanup', ['--hours' => 0])
+            ->expectsOutput('Deleted 1 stale backup file(s).')
+            ->assertSuccessful();
+
+        $this->assertTrue($disk->exists('half-hour.vault'));
+        $this->assertFalse($disk->exists('two-hour.vault'));
+    }
+
+    #[Test]
+    public function test_cleanup_with_negative_hours_clamps_to_one_hour(): void
+    {
+        $disk = Storage::disk('backups');
+
+        $disk->put('half-hour.vault', 'content');
+        touch($disk->path('half-hour.vault'), now()->subMinutes(30)->timestamp);
+
+        $this->artisan('backup:cleanup', ['--hours' => -5])
+            ->expectsOutput('Deleted 0 stale backup file(s).')
+            ->assertSuccessful();
+
+        // A negative cutoff would otherwise delete every file immediately.
+        $this->assertTrue($disk->exists('half-hour.vault'));
+    }
+
+    #[Test]
+    public function test_cleanup_with_garbage_hours_clamps_to_one_hour(): void
+    {
+        $disk = Storage::disk('backups');
+
+        $disk->put('half-hour.vault', 'content');
+        touch($disk->path('half-hour.vault'), now()->subMinutes(30)->timestamp);
+        $disk->put('three-hour.vault', 'content');
+        touch($disk->path('three-hour.vault'), now()->subHours(3)->timestamp);
+
+        // "(int) 'garbage'" === 0 → clamped to 1 hour, not a full wipe.
+        $this->artisan('backup:cleanup', ['--hours' => 'garbage'])
+            ->expectsOutput('Deleted 1 stale backup file(s).')
+            ->assertSuccessful();
+
+        $this->assertTrue($disk->exists('half-hour.vault'));
+        $this->assertFalse($disk->exists('three-hour.vault'));
+    }
 }

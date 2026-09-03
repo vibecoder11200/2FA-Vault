@@ -482,25 +482,34 @@ class TeamController extends Controller
 
     /**
      * Unshare an account from a team.
+     *
+     * B4: an account may have multiple shared_accounts rows for the same team
+     * (one per member for E2EE shares). Unsharing revokes ALL of them.
      */
     public function unshareAccount(Request $request, $id, $accountId)
     {
         $team = Team::findOrFail($id);
         $user = Auth::user();
 
-        $sharedAccount = \App\Models\SharedAccount::where('team_id', $team->id)
+        $sharedAccounts = \App\Models\SharedAccount::where('team_id', $team->id)
             ->where('twofaccount_id', $accountId)
-            ->firstOrFail();
+            ->get();
 
-        if ($sharedAccount->shared_by !== $user->id) {
+        if ($sharedAccounts->isEmpty()) {
+            abort(404);
+        }
+
+        if ($sharedAccounts->first()->shared_by !== $user->id) {
             $role = $team->getUserRole($user->id);
             if (! in_array($role, ['owner', 'admin'])) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
         }
 
-        $accountToLog = $sharedAccount->twoFAccount;
-        $sharedAccount->delete();
+        $accountToLog = $sharedAccounts->first()->twoFAccount;
+        \App\Models\SharedAccount::where('team_id', $team->id)
+            ->where('twofaccount_id', $accountId)
+            ->delete();
         $this->activityLogger->log($team, $user, TeamAction::ACCOUNT_UNSHARED, null, null, $accountToLog);
 
         return response()->json(['message' => 'Account unshared successfully']);
@@ -521,6 +530,10 @@ class TeamController extends Controller
 
         $sharedAccounts = $team->sharedAccounts()
             ->with(['twoFAccount', 'sharedBy'])
+            // B15: deterministic order — member rows before legacy NULL-member
+            // rows so unique('twofaccount_id') never drops a member's
+            // wrapped-key row in favor of a legacy plain share.
+            ->orderByDesc('member_id')
             ->get()
             // For encrypted shares, return only the row for the requesting user
             ->filter(function ($sa) use ($requestingUserId) {

@@ -33,8 +33,17 @@
                     <div class="field">
                         <label class="label">{{ $t('label.account') }}</label>
                         <div class="control">
-                            <input class="input" type="text" :value="shareAccountSecret ? '••••••••' : $t('teams.enter_secret_to_share')" readonly />
-                            <input class="input mt-1" type="text" v-model="shareAccountSecret" :placeholder="$t('teams.paste_totp_secret')" />
+                            <div class="select is-fullwidth">
+                                <!-- B1: share an existing vault account by id. The
+                                     secret is decrypted client-side by the caller and
+                                     wrapped per member — it is never pasted as text. -->
+                                <select v-model="selectedAccountId">
+                                    <option :value="null" disabled>{{ $t('teams.select_account_to_share') }}</option>
+                                    <option v-for="account in accounts" :key="account.id" :value="account.id">
+                                        {{ accountLabel(account) }}
+                                    </option>
+                                </select>
+                            </div>
                         </div>
                         <p class="help">{{ $t('teams.secret_never_sent_to_server') }}</p>
                     </div>
@@ -42,10 +51,10 @@
             </section>
             <footer class="modal-card-foot">
                 <button
-                    @click="$emit('share', { secret: shareAccountSecret, memberIds: selectedMemberIds, accessLevel: shareAccessLevel })"
+                    @click="$emit('share', { accountId: selectedAccountId, memberIds: selectedMemberIds, accessLevel: shareAccessLevel })"
                     class="button is-success"
                     :class="{ 'is-loading': isSharing }"
-                    :disabled="!keyPairReady || !shareAccountSecret || selectedMemberIds.length === 0"
+                    :disabled="!keyPairReady || !selectedAccountId || selectedMemberIds.length === 0"
                 >
                     {{ $t('teams.share_now') }}
                 </button>
@@ -62,11 +71,18 @@
         isInitingKeys: { type: Boolean, default: false },
         isSharing: { type: Boolean, default: false },
         members: { type: Array, default: () => [] },
+        accounts: { type: Array, default: () => [] },
     })
 
     defineEmits(['close', 'init-key-pair', 'share'])
 
     const shareAccessLevel = ref('read')
-    const shareAccountSecret = ref('')
+    const selectedAccountId = ref(null)
     const selectedMemberIds = ref([])
+
+    function accountLabel(account) {
+        const service = account.service || account.account || `#${account.id}`
+
+        return account.account && account.service ? `${account.service} (${account.account})` : service
+    }
 </script>

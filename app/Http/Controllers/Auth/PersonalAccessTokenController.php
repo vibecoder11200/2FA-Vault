@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Laravel\Passport\Http\Controllers\PersonalAccessTokenController as PassportPatController;
+use Laravel\Passport\Passport;
 use Laravel\Passport\PersonalAccessTokenResult;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
@@ -28,7 +30,7 @@ class PersonalAccessTokenController extends PassportPatController
     /**
      * Create a new personal access token for the user.
      *
-     * @return \Laravel\Passport\PersonalAccessTokenResult|\Illuminate\Http\JsonResponse
+     * @return \Laravel\Passport\PersonalAccessTokenResult<\Laravel\Passport\Token>
      */
     public function store(Request $request) : PersonalAccessTokenResult
     {
@@ -36,13 +38,25 @@ class PersonalAccessTokenController extends PassportPatController
             throw new AccessDeniedHttpException(__('error.unsupported_with_sso_only'));
         }
 
-        return parent::store($request);
+        // A6 / RT1: a new PAT must explicitly request at least one valid
+        // scope. The omitted-scopes default ([] from Passport's parent
+        // implementation) must 422 — otherwise attackers could mint
+        // unscoped, effectively-full-access tokens.
+        $this->validation->make($request->all(), [
+            'name'   => ['required', 'max:255'],
+            'scopes' => ['required', 'array', 'min:1', Rule::in(Passport::scopeIds())],
+        ])->validate();
+
+        return $request->user()->createToken(
+            $request->name,
+            Passport::validScopes($request->scopes)
+        );
     }
 
     /**
      * Delete the given token.
      *
-     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
+     * @return \Illuminate\Http\Response
      */
     public function destroy(Request $request, string $tokenId) : Response
     {

@@ -236,6 +236,11 @@ function base64ToBytes(base64) {
     return Uint8Array.from(binString, (char) => char.charCodeAt(0))
 }
 
+export {
+    bytesToBase64,
+    base64ToBytes
+}
+
 export default {
     generateSalt,
     deriveKey,
@@ -244,5 +249,7 @@ export default {
     encryptAccount,
     decryptAccount,
     createTestValue,
-    verifyPassword
+    verifyPassword,
+    bytesToBase64,
+    base64ToBytes
 }

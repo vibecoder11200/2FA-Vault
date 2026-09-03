@@ -48,13 +48,14 @@ class BackupServiceTest extends TestCase
     {
         $backup = $this->backupService->generateEncryptedBackup($this->user);
 
+        // C1: the generator now returns the payload directly, marked format 2
         $this->assertEquals('2FA-Vault', $backup['app']);
+        $this->assertEquals(2, $backup['format']);
         $this->assertEquals('2.0', $backup['version']);
-        $this->assertArrayHasKey('data', $backup);
 
         $rawBackup = $this->backupService->normalizeVaultBackupData($backup);
 
-        $this->assertEquals('2FA-Vault', $rawBackup['format']);
+        $this->assertEquals(2, $rawBackup['format']);
         $this->assertEquals('2.0', $rawBackup['version']);
         $this->assertTrue($rawBackup['encrypted']);
         $this->assertTrue($rawBackup['double_encrypted']);
@@ -144,6 +145,278 @@ class BackupServiceTest extends TestCase
 
         $this->assertEquals(1, $rawBackup['encryption_version']);
         $this->assertTrue($rawBackup['accounts'][0]['encrypted']);
+    }
+
+    /**
+     * Test that a server-built encrypted envelope can be decrypted back
+     * (Argon2id + AES-256-GCM, same stack the SPA uses).
+     */
+    public function test_encrypted_envelope_round_trip(): void
+    {
+        $payload = $this->backupService->generateEncryptedBackup($this->user);
+        $payload['accounts'][] = [
+            'service' => 'GitHub',
+            'account' => 'user@example.com',
+            'secret'  => 'JBSWY3DPEHPK3PXP',
+            'otp_type' => 'totp',
+        ];
+
+        $envelope = $this->backupService->buildEncryptedEnvelope($payload, 'correct horse battery staple');
+
+        $this->assertEquals('2FA-Vault', $envelope['app']);
+        $this->assertEquals(2, $envelope['format']);
+        $this->assertEquals('aes-256-gcm', $envelope['encryption']['algorithm']);
+        $this->assertEquals('argon2id', $envelope['encryption']['kdf']);
+        $this->assertNotSame($payload, $envelope['data']);
+
+        // Decrypt manually with the same KDF + cipher
+        $key = sodium_crypto_pwhash(
+            32,
+            'correct horse battery staple',
+            base64_decode($envelope['encryption']['salt'], true),
+            $envelope['encryption']['kdf_params']['time'],
+            $envelope['encryption']['kdf_params']['memory_kib'] * 1024,
+            SODIUM_CRYPTO_PWHASH_ALG_ARGON2ID13
+        );
+
+        $tag = base64_decode($envelope['encryption']['tag'], true);
+
+        $plaintext = openssl_decrypt(
+            base64_decode($envelope['data'], true),
+            'aes-256-gcm',
+            $key,
+            OPENSSL_RAW_DATA,
+            base64_decode($envelope['encryption']['iv'], true),
+            $tag,
+            ''
+        );
+
+        // Wrong password must NOT decrypt
+        $wrongKey = sodium_crypto_pwhash(
+            32,
+            'wrong password',
+            base64_decode($envelope['encryption']['salt'], true),
+            $envelope['encryption']['kdf_params']['time'],
+            $envelope['encryption']['kdf_params']['memory_kib'] * 1024,
+            SODIUM_CRYPTO_PWHASH_ALG_ARGON2ID13
+        );
+
+        $this->assertSame(json_encode($payload, JSON_UNESCAPED_SLASHES), $plaintext);
+        $this->assertSame($envelope['encryption']['tag'], base64_encode($tag));
+        $wrongTag = random_bytes(16);
+        $this->assertFalse(
+            openssl_decrypt(
+                base64_decode($envelope['data'], true),
+                'aes-256-gcm',
+                $wrongKey,
+                OPENSSL_RAW_DATA,
+                base64_decode($envelope['encryption']['iv'], true),
+                $wrongTag,
+                ''
+            )
+        );
+    }
+
+    /**
+     * Undecrypted v2 envelope detection (RT4)
+     */
+    public function test_undecrypted_v2_envelope_detection(): void
+    {
+        $envelope = $this->backupService->buildEncryptedEnvelope(
+            $this->backupService->generateEncryptedBackup($this->user),
+            'pw'
+        );
+
+        $this->assertTrue($this->backupService->isUndecryptedV2Envelope($envelope));
+        $this->assertFalse($this->backupService->validateImportPayload($envelope, 'vault'));
+
+        // Once decrypted client-side, the payload carries a top-level
+        // accounts array and is importable
+        $payload = $this->backupService->generateEncryptedBackup($this->user);
+        $this->assertFalse($this->backupService->isUndecryptedV2Envelope($payload));
+
+        // Legacy envelopes (no numeric format) are not v2 envelopes
+        $legacy = $this->backupService->buildLegacyEnvelope($payload);
+        $this->assertFalse($this->backupService->isUndecryptedV2Envelope($legacy));
+        $this->assertTrue($this->backupService->isLegacyVaultImport($legacy));
+    }
+
+    /**
+     * C2: the app's own exports must be detected as vault format, not routed
+     * to the external TwoFAuth migrator.
+     */
+    public function test_detect_import_format_routes_own_exports_to_vault(): void
+    {
+        $payload = $this->backupService->generateEncryptedBackup($this->user);
+        $this->assertEquals('vault', $this->backupService->detectImportFormat($payload));
+
+        $legacyEnvelope = $this->backupService->buildLegacyEnvelope($payload);
+        $this->assertEquals('vault', $this->backupService->detectImportFormat($legacyEnvelope));
+
+        // Genuine 2FAuth app exports still go to the TwoFAuth migrator
+        $this->assertEquals(
+            '2FA-Vault',
+            $this->backupService->detectImportFormat([
+                'app'  => 'twofauth_v3.4.1',
+                'schema' => 1,
+                'data' => base64_encode('{}'),
+            ])
+        );
+    }
+
+    /**
+     * C2 round-trip: generate → import restores the accounts
+     */
+    public function test_round_trip_generate_then_restore(): void
+    {
+        TwoFAccount::factory()->count(3)->create([
+            'user_id' => $this->user->id,
+        ]);
+
+        $payload = $this->backupService->generateEncryptedBackup($this->user);
+
+        TwoFAccount::query()->delete();
+
+        $result = $this->backupService->restoreEncryptedBackup($this->user, $payload, 'vault');
+
+        $this->assertEquals(3, $result['imported']);
+        $this->assertEquals(0, $result['failed']);
+        $this->assertEquals(3, TwoFAccount::where('user_id', $this->user->id)->count());
+        $this->assertCount(3, $result['imported_ids']);
+    }
+
+    /**
+     * C6: an unmapped group_id must not be attached raw
+     */
+    public function test_restore_sets_null_group_id_when_unmapped(): void
+    {
+        // A group belonging to ANOTHER user
+        $otherUser = User::factory()->create();
+        $foreignGroup = Group::factory()->create([
+            'user_id' => $otherUser->id,
+        ]);
+
+        $backupData = [
+            'version'  => '2.0',
+            'format'   => 2,
+            'accounts' => [
+                [
+                    'service'  => 'GitHub',
+                    'account'  => 'user@example.com',
+                    'secret'   => 'JBSWY3DPEHPK3PXP',
+                    'group_id' => $foreignGroup->id,
+                ],
+            ],
+            'groups' => [],
+        ];
+
+        $result = $this->backupService->restoreEncryptedBackup(
+            $this->user,
+            $backupData,
+            'vault',
+            ['import_groups' => true]
+        );
+
+        $this->assertEquals(1, $result['imported']);
+
+        $account = TwoFAccount::where('user_id', $this->user->id)->first();
+        $this->assertNull($account->group_id);
+    }
+
+    /**
+     * C7: migrator fake error accounts are counted as failed, not persisted
+     */
+    public function test_external_import_counts_fake_accounts_as_failed(): void
+    {
+        // Item 0 is valid; item 1 has a totp URI whose secret cannot be
+        // parsed → migrator returns a fake error account (a missing key
+        // would instead abort with InvalidMigrationDataException per C9)
+        $migrationPayload = json_encode([
+            'encrypted' => false,
+            'items'     => [
+                [
+                    'name' => 'Google',
+                    'type' => 1,
+                    'login' => [
+                        'username' => 'john@example.com',
+                        'totp'     => 'otpauth://totp/Google:john?issuer=Google&secret=A5GRFTVVRBGY7UIW',
+                    ],
+                ],
+                [
+                    'name' => 'Broken',
+                    'type' => 1,
+                    'login' => [
+                        'username' => 'broken@example.com',
+                        'totp'     => 'otpauth://totp/Broken:john?issuer=Broken',
+                    ],
+                ],
+            ],
+        ]);
+
+        $result = $this->backupService->restoreEncryptedBackup(
+            $this->user,
+            json_decode($migrationPayload, true),
+            'bitwarden'
+        );
+
+        $this->assertEquals(1, $result['imported']);
+        $this->assertEquals(1, $result['failed']);
+
+        // The fake account must not be persisted
+        $this->assertCount(1, TwoFAccount::where('user_id', $this->user->id)->get());
+    }
+
+    /**
+     * C3: key mismatch summary
+     */
+    public function test_restore_reports_key_mismatch(): void
+    {
+        $backupData = [
+            'format'             => 2,
+            'version'            => '2.0',
+            'encryption_version' => 2,
+            'accounts'           => [
+                [
+                    'service'   => 'Enc',
+                    'account'   => 'enc@example.com',
+                    'secret'    => json_encode(['ciphertext' => 'a', 'iv' => 'b', 'authTag' => 'c']),
+                    'encrypted' => true,
+                    'otp_type'  => 'totp',
+                ],
+            ],
+        ];
+
+        // Importer's E2EE version differs from the backup's
+        $this->user->encryption_version = 1;
+        $this->user->save();
+
+        $result = $this->backupService->restoreEncryptedBackup($this->user, $backupData, 'vault');
+
+        $this->assertEquals(1, $result['encrypted_count']);
+        $this->assertTrue($result['key_mismatch_warning']);
+    }
+
+    /**
+     * C13: an import must not set last_backup_at
+     */
+    public function test_restore_does_not_update_last_backup_at(): void
+    {
+        $backupData = [
+            'version'  => '2.0',
+            'accounts' => [
+                [
+                    'service'  => 'GitHub',
+                    'account'  => 'user@example.com',
+                    'secret'   => 'JBSWY3DPEHPK3PXP',
+                    'otp_type' => 'totp',
+                ],
+            ],
+        ];
+
+        $this->backupService->restoreEncryptedBackup($this->user, $backupData, 'vault');
+
+        $this->user->refresh();
+        $this->assertNull($this->user->last_backup_at);
     }
 
     /**

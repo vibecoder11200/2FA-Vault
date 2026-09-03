@@ -122,15 +122,22 @@ class LoginController extends Controller
 
         $this->authenticated($request, $user);
 
+        // Session fixation hardening: the pre-authentication session id must
+        // not survive authentication. Must run BEFORE the UserSession row is
+        // recorded so token_id holds the regenerated session id.
+        $request->session()->regenerate();
+
         // Record the active session for the session-management feature.
         // token_id holds the Laravel session id (web-guard) or a Passport token id.
-        UserSession::create([
-            'user_id'        => $user->id,
-            'token_id'       => $request->session()->getId(),
-            'ip_address'     => $request->ip(),
-            'user_agent'     => $request->userAgent(),
-            'last_active_at' => now(),
-        ]);
+        UserSession::updateOrCreate(
+            ['token_id' => $request->session()->getId()],
+            [
+                'user_id'        => $user->id,
+                'ip_address'     => $request->ip(),
+                'user_agent'     => $request->userAgent(),
+                'last_active_at' => now(),
+            ]
+        );
 
         return response()->json(
             array_merge([
@@ -174,6 +181,8 @@ class LoginController extends Controller
         $credentials = [
             $this->username() => strtolower($request->input($this->username())),
             'password'        => $request->get('password'),
+            // Deactivated users cannot log back in (A1)
+            'is_active' => true,
         ];
 
         return $credentials;

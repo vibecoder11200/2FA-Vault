@@ -47,6 +47,34 @@ export default defineConfig({
     base: `${ASSET_URL}`,
     plugins: [
         argon2WasmPlugin(),
+        // E4/E7: emits public/build/precachelist.json so the service worker
+        // precaches the REAL hashed assets of this build (the old sw.js
+        // hardcoded /js/app.js which never exists under Vite). Also carries
+        // the version stamp used for cache busting.
+        {
+            name: '2favault-precachelist',
+            apply: 'build',
+            closeBundle() {
+                const buildDir = path.join(__dirname, 'public/build')
+                const assetsDir = path.join(buildDir, 'assets')
+                const assets = []
+                if (fs.existsSync(assetsDir)) {
+                    for (const f of fs.readdirSync(assetsDir)) {
+                        if (/\.(js|css|woff2?)$/.test(f)) assets.push('/build/assets/' + f)
+                    }
+                }
+                // Public shell files served relative to the app base
+                assets.push('/', '/manifest.json')
+                for (const icon of ['48x48', '72x72', '96x96', '128x128', '144x144', '152x152', '192x192', '384x384', '512x512']) {
+                    assets.push(`/icons/pwa-${icon}.png`)
+                }
+                const version = String(Date.now())
+                fs.writeFileSync(
+                    path.join(buildDir, 'precachelist.json'),
+                    JSON.stringify({ version, assets }, null, 2)
+                )
+            },
+        },
         laravel([
             'resources/js/app.js',
         ]),

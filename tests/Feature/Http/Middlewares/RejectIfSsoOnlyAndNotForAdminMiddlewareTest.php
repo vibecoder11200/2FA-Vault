@@ -60,13 +60,44 @@ class RejectIfSsoOnlyAndNotForAdminMiddlewareTest extends FeatureTestCase
     }
 
     #[Test]
-    public function test_login_of_missing_account_returns_NOT_ALLOWED()
+    public function test_login_of_missing_account_returns_generic_unauthorized()
     {
+        // A7: non-admin and unknown emails must be indistinguishable from a
+        // failed admin login (generic 401 'unauthorized').
         $this->json('POST', '/user/login', [
             'email'    => 'missing@user.com',
             'password' => self::PASSWORD,
         ])
-            ->assertMethodNotAllowed();
+            ->assertUnauthorized()
+            ->assertExactJson(['message' => 'unauthorized']);
+    }
+
+    #[Test]
+    public function test_login_of_regular_user_returns_same_response_as_failed_admin_login()
+    {
+        // The enumeration oracle is gone: non-admin email, unknown email and
+        // admin email with a wrong password all produce the exact same
+        // 401 'unauthorized' response.
+        $nonAdmin = $this->json('POST', '/user/login', [
+            'email'    => $this->user->email,
+            'password' => self::PASSWORD,
+        ]);
+
+        $unknown = $this->json('POST', '/user/login', [
+            'email'    => 'missing@user.com',
+            'password' => self::PASSWORD,
+        ]);
+
+        $adminWrongPassword = $this->json('POST', '/user/login', [
+            'email'    => $this->admin->email,
+            'password' => 'wrongpassword',
+        ]);
+
+        $this->assertSame(401, $nonAdmin->getStatusCode());
+        $this->assertSame($nonAdmin->getStatusCode(), $unknown->getStatusCode());
+        $this->assertSame($nonAdmin->getContent(), $unknown->getContent());
+        $this->assertSame($nonAdmin->getStatusCode(), $adminWrongPassword->getStatusCode());
+        $this->assertSame($nonAdmin->getContent(), $adminWrongPassword->getContent());
     }
 
     #[Test]

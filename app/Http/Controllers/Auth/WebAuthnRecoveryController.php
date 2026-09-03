@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Auth;
 use App\Extensions\WebauthnCredentialBroker;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\WebauthnRecoveryRequest;
+use App\Models\UserSession;
+use App\Services\CredentialRevocationService;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Auth\ResetsPasswords;
 use Illuminate\Http\JsonResponse;
@@ -53,6 +55,10 @@ class WebAuthnRecoveryController extends Controller
                     $user['preferences->useWebauthnOnly'] = false;
                     $user->save();
                     Log::notice(sprintf('Legacy login restored for user ID #%s', $user->id));
+
+                    // The recovery flow resets the password, so every
+                    // credential obtained with the old one is revoked.
+                    app(CredentialRevocationService::class)->revokeAllFor($user->refresh());
                 } else {
                     throw new AuthenticationException;
                 }
@@ -80,6 +86,32 @@ class WebAuthnRecoveryController extends Controller
      */
     protected function sendRecoveryResponse(Request $request, string $response) : JsonResponse
     {
+        $user = $request->user();
+
+        // Keep the session-management bookkeeping consistent with a regular
+        // login: the recovered user is now authenticated with a fresh session
+        // and the vault is re-armed (A9).
+        if ($user) {
+            if ($user->encryption_enabled && $user->encryption_version > 0) {
+                $user->vault_locked = true;
+                $user->save();
+            }
+
+            if ($request->hasSession()) {
+                $request->session()->regenerate();
+
+                UserSession::updateOrCreate(
+                    ['token_id' => $request->session()->getId()],
+                    [
+                        'user_id'        => $user->id,
+                        'ip_address'     => $request->ip(),
+                        'user_agent'     => $request->userAgent(),
+                        'last_active_at' => now(),
+                    ]
+                );
+            }
+        }
+
         return response()->json(['message' => __('message.webauthn_login_disabled')]);
     }
 

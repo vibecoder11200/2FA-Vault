@@ -159,60 +159,34 @@ class BiometricService {
   }
 
   /**
-   * Enroll and securely store the master password for biometric unlock.
-   * Registers a WebAuthn platform credential, then stores an encrypted copy
-   * of the master password in IndexedDB. The wrapping key is stored in IndexedDB
-   * alongside it — biometric auth is a UX barrier ensuring only the device owner
-   * can trigger decryption. PRF extension is used when available for stronger binding.
+   * B6/E12 (security): DISABLED. The previous implementation stored the AES-GCM
+   * wrapping key in IndexedDB right next to the encrypted master password, so
+   * anyone with disk/browser-profile access (or an XSS on the origin) could
+   * recover the master password without any biometric ceremony — the WebAuthn
+   * call was not cryptographically bound (no PRF). Do not re-enable until a
+   * WebAuthn-PRF-bound implementation exists and is device-tested.
    *
    * @param {string} username
    * @param {string} masterPassword
    */
   async enrollWithMasterPassword(username, masterPassword) {
-    const regResult = await this.register(username)
-    if (!regResult.success) throw new Error('Biometric registration failed')
-
-    const wrappingKey = crypto.getRandomValues(new Uint8Array(32))
-    const iv = crypto.getRandomValues(new Uint8Array(12))
-
-    const cryptoKey = await crypto.subtle.importKey('raw', wrappingKey, { name: 'AES-GCM' }, false, ['encrypt'])
-    const encrypted  = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, new TextEncoder().encode(masterPassword))
-
-    await offlineDb.saveSetting('biometric_wrapping_key', this.bufferToBase64(wrappingKey))
-    await offlineDb.saveSetting('biometric_encrypted_pw', JSON.stringify({
-      iv:   this.bufferToBase64(iv),
-      data: this.bufferToBase64(encrypted),
-    }))
-
-    return regResult
+    throw new Error('Biometric unlock is disabled in this release for security reasons. Use your master password, and remove any previously stored biometric data from Settings → Encryption.')
   }
 
   /**
-   * Unlock vault using biometric: authenticates the user, then decrypts and
-   * returns the stored master password.
+   * B6/E12 (security): DISABLED alongside enrollment — the stored wrapping key
+   * made the ciphertext offline-recoverable without biometrics. Kept async and
+   * throwing so the existing unlock UI surfaces a clear error instead of a
+   * silent no-op. remove() still works so users can purge previously stored
+   * data from Settings → Encryption.
    *
    * @returns {Promise<string>} The master password
    */
   async retrieveMasterPassword() {
-    await this.authenticate()  // Throws if biometric fails
-
-    const wrappingKeyB64 = await offlineDb.getSetting('biometric_wrapping_key')
-    const encryptedJson  = await offlineDb.getSetting('biometric_encrypted_pw')
-
-    if (!wrappingKeyB64 || !encryptedJson) {
-      throw new Error('No biometric-protected password found. Please re-enroll.')
-    }
-
-    const { iv, data } = JSON.parse(encryptedJson)
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw', this.base64ToBuffer(wrappingKeyB64), { name: 'AES-GCM' }, false, ['decrypt']
-    )
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: this.base64ToBuffer(iv) },
-      cryptoKey,
-      this.base64ToBuffer(data)
-    )
-    return new TextDecoder().decode(decrypted)
+    // Purge any legacy copy so it cannot be recovered by other means.
+    await offlineDb.saveSetting('biometric_wrapping_key', null).catch(() => {})
+    await offlineDb.saveSetting('biometric_encrypted_pw', null).catch(() => {})
+    throw new Error('Biometric unlock is disabled in this release for security reasons. Unlock with your master password.')
   }
 
   /**

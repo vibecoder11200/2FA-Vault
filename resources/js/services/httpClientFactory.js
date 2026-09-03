@@ -70,8 +70,19 @@ export const httpClientFactory = (endpoint = 'api') => {
 		async function (error) {
 			const originalRequestConfig = error.config
 
-            // Here we handle a missing/invalid CSRF cookie
-            // We try to get a fresh on, but only once.
+			// E10: network-level failures (offline, DNS, CORS) have no
+			// `error.response` — dereferencing it crashed the interceptor
+			// itself and callers got a TypeError instead of the network error.
+			if (!error.response) {
+				if (error.config?.returnError === true) {
+					return Promise.reject(error)
+				}
+				useErrorHandler().show(error)
+				return new Promise(() => {})
+			}
+
+			// Here we handle a missing/invalid CSRF cookie
+			// We try to get a fresh on, but only once.
 			if (error.response.status === 419 && ! originalRequestConfig._retried) {
 				originalRequestConfig._retried = true;
 				delete originalRequestConfig.headers?.['X-XSRF-TOKEN']
@@ -80,44 +91,46 @@ export const httpClientFactory = (endpoint = 'api') => {
 				return httpClient.request(originalRequestConfig)
 			}
 
-            // api calls are stateless so when user inactivity is detected
-            // by the backend middleware, it cannot logout the user directly
-            // so it returns a 418 response.
-            // We catch the 418 response and log the user out
-            if (error.response.status === 418) {
-                const user = useUserStore()
-                user.logout({ kicked: true})
-            }
-            
-            if (error.response && [407].includes(error.response.status)) {
-                useErrorHandler().show(error)
-                return new Promise(() => {})
-            }
+			// api calls are stateless so when user inactivity is detected
+			// by the backend middleware, it cannot logout the user directly
+			// so it returns a 418 response.
+			// We catch the 418 response and log the user out
+			if (error.response.status === 418) {
+				const user = useUserStore()
+				user.logout({ kicked: true})
+			}
 
-            // Return the error when we need to handle it at component level
-            if (error.config.hasOwnProperty('returnError') && error.config.returnError === true) {
-                return Promise.reject(error)
-            }
-            
-            if (error.response && [401].includes(error.response.status)) {
-                const user = useUserStore()
-                user.tossOut()
-            }
+			if (error.response && [407].includes(error.response.status)) {
+				useErrorHandler().show(error)
+				return new Promise(() => {})
+			}
 
-            // Always return the form validation errors
-            if (error.response.status === 422) {
-                return Promise.reject(error)
-            }
+			// Return the error when we need to handle it at component level
+			if (error.config.hasOwnProperty('returnError') && error.config.returnError === true) {
+				return Promise.reject(error)
+			}
 
-            // Not found
-            if (error.response.status === 404) {
-                useErrorHandler().notFound()
-                return new Promise(() => {})
-            }
+			if (error.response && [401].includes(error.response.status)) {
+				const user = useUserStore()
+				user.tossOut()
+			}
 
-            useErrorHandler().show(error)
-            return new Promise(() => {})
-        }
+			// Always return the form validation errors
+			if (error.response.status === 422) {
+				return Promise.reject(error)
+			}
+
+			// Not found
+			if (error.response.status === 404) {
+				useErrorHandler().notFound()
+				// E10: a never-resolving promise left callers (e.g. the OTP
+				// modal spinner) hanging forever — reject so they can recover.
+				return Promise.reject(error)
+			}
+
+			useErrorHandler().show(error)
+			return Promise.reject(error)
+		}
     )
 
 	return httpClient

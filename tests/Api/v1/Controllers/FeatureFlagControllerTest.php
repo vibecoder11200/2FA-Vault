@@ -39,7 +39,7 @@ class FeatureFlagControllerTest extends FeatureTestCase
         $user     = $this->createEncryptedUser();
         $features = config('2fauth.features');
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/features')
             ->assertOk()
@@ -59,7 +59,7 @@ class FeatureFlagControllerTest extends FeatureTestCase
         $user            = $this->createEncryptedUser();
         $existingFeature = config('2fauth.features')[0];
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/features/' . $existingFeature)
             ->assertOk()
@@ -73,7 +73,7 @@ class FeatureFlagControllerTest extends FeatureTestCase
     public function test_show_unknown_feature_returns_disabled()
     {
         $user = $this->createEncryptedUser();
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/features/unknownFeature')
             ->assertStatus(404)

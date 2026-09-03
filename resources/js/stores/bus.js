@@ -8,6 +8,9 @@ export const useBusStore = defineStore('bus', {
             inManagementMode: false,
             editedGroupName: null,
             username: null,
+            // E8: bumped every time the vault auto-locks so views can scrub
+            // plaintext UI (close the OTP modal etc.)
+            vaultLockedAt: 0,
         }
     },
 

@@ -191,8 +191,9 @@ class WebAuthnLoginControllerTest extends FeatureTestCase
         $this->json('POST', '/webauthn/login', self::ASSERTION_RESPONSE)
             ->assertOk();
 
+        // A10: logout is POST-only now (the GET route answers 410).
         $this->actingAs($this->user, self::GUARD)
-            ->json('GET', '/user/logout');
+            ->json('POST', '/user/logout');
 
         $this->travel(1)->minute();
 
@@ -462,15 +463,15 @@ class WebAuthnLoginControllerTest extends FeatureTestCase
     }
 
     #[Test]
-    public function test_get_options_with_unknown_email_returns_validation_errors()
+    public function test_get_options_with_unknown_email_returns_200_shaped_generic_error()
     {
+        // A8: a 422-vs-200 difference was a registered-email enumeration
+        // oracle; unknown emails now get a 200-shaped generic error.
         $this->json('POST', '/webauthn/login/options', [
             'email' => 'john@example.com',
         ])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors([
-                'email',
-            ]);
+            ->assertStatus(200)
+            ->assertJsonMissingValidationErrors();
     }
 
     #[Test]

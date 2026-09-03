@@ -73,7 +73,7 @@ class SettingControllerTest extends FeatureTestCase
     #[Test]
     public function test_index_returns_setting_collection()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/settings')
             ->assertOk()
@@ -85,7 +85,7 @@ class SettingControllerTest extends FeatureTestCase
     #[Test]
     public function test_index_is_forbidden_to_users()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/settings')
             ->assertForbidden()
@@ -97,7 +97,7 @@ class SettingControllerTest extends FeatureTestCase
     #[Test]
     public function test_show_native_unchanged_setting_returns_consistent_value()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/settings/' . self::TWOFAUTH_NATIVE_SETTING)
             ->assertOk()
@@ -112,7 +112,7 @@ class SettingControllerTest extends FeatureTestCase
     {
         Settings::set(self::TWOFAUTH_NATIVE_SETTING, self::TWOFAUTH_NATIVE_SETTING_CHANGED_VALUE);
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/settings/' . self::TWOFAUTH_NATIVE_SETTING)
             ->assertOk()
@@ -127,7 +127,7 @@ class SettingControllerTest extends FeatureTestCase
     {
         Settings::set(self::USER_DEFINED_SETTING, self::USER_DEFINED_SETTING_VALUE);
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/settings/' . self::USER_DEFINED_SETTING)
             ->assertOk()
@@ -140,7 +140,7 @@ class SettingControllerTest extends FeatureTestCase
     #[Test]
     public function test_show_missing_setting_returns_not_found()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/settings/missing')
             ->assertNotFound();
@@ -149,7 +149,7 @@ class SettingControllerTest extends FeatureTestCase
     #[Test]
     public function test_show_setting_is_forbidden_to_users()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/settings/' . self::TWOFAUTH_NATIVE_SETTING)
             ->assertForbidden()
@@ -161,7 +161,7 @@ class SettingControllerTest extends FeatureTestCase
     #[Test]
     public function test_store_custom_user_setting_returns_success()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/settings', [
                 'key'   => self::USER_DEFINED_SETTING,
@@ -177,7 +177,7 @@ class SettingControllerTest extends FeatureTestCase
     #[Test]
     public function test_store_invalid_custom_user_setting_returns_validation_error()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/settings', [
                 'key'   => null,
@@ -191,7 +191,7 @@ class SettingControllerTest extends FeatureTestCase
     {
         Settings::set(self::USER_DEFINED_SETTING, self::USER_DEFINED_SETTING_VALUE);
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/settings', [
                 'key'   => self::USER_DEFINED_SETTING,
@@ -203,7 +203,7 @@ class SettingControllerTest extends FeatureTestCase
     #[Test]
     public function test_update_unchanged_native_setting_returns_updated_setting()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('PUT', '/api/v1/settings/' . self::TWOFAUTH_NATIVE_SETTING, [
                 'value' => self::TWOFAUTH_NATIVE_SETTING_CHANGED_VALUE,
@@ -220,7 +220,7 @@ class SettingControllerTest extends FeatureTestCase
     {
         Settings::set(self::USER_DEFINED_SETTING, self::USER_DEFINED_SETTING_VALUE);
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('PUT', '/api/v1/settings/' . self::USER_DEFINED_SETTING, [
                 'value' => self::USER_DEFINED_SETTING_CHANGED_VALUE,
@@ -235,7 +235,7 @@ class SettingControllerTest extends FeatureTestCase
     #[Test]
     public function test_update_missing_user_setting_returns_created_setting()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('PUT', '/api/v1/settings/' . self::USER_DEFINED_SETTING, [
                 'value' => self::USER_DEFINED_SETTING_CHANGED_VALUE,
@@ -250,7 +250,7 @@ class SettingControllerTest extends FeatureTestCase
     #[Test]
     public function test_update_restrict_list_setting_rejects_invalid_email_list()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('PUT', '/api/v1/settings/restrictList', [
                 'value' => 'johndoe@example.com|janedoeexamplecom',
@@ -263,7 +263,7 @@ class SettingControllerTest extends FeatureTestCase
     {
         Settings::set(self::USER_DEFINED_SETTING, self::USER_DEFINED_SETTING_VALUE);
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('DELETE', '/api/v1/settings/' . self::USER_DEFINED_SETTING)
             ->assertNoContent();
@@ -272,7 +272,7 @@ class SettingControllerTest extends FeatureTestCase
     #[Test]
     public function test_destroy_native_setting_returns_bad_request()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('DELETE', '/api/v1/settings/' . self::TWOFAUTH_NATIVE_SETTING)
             ->assertStatus(400)
@@ -285,7 +285,7 @@ class SettingControllerTest extends FeatureTestCase
     #[Test]
     public function test_destroy_missing_user_setting_returns_not_found()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('DELETE', '/api/v1/settings/' . self::USER_DEFINED_SETTING)
             ->assertNotFound();
@@ -296,7 +296,7 @@ class SettingControllerTest extends FeatureTestCase
     {
         Settings::set(self::USER_DEFINED_SETTING, self::USER_DEFINED_SETTING_VALUE);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('DELETE', '/api/v1/settings/' . self::USER_DEFINED_SETTING)
             ->assertForbidden()

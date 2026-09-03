@@ -7,6 +7,8 @@
     import { useI18n } from 'vue-i18n'
     import { useErrorHandler } from '@2fauth/stores'
     import httpClientFactory from '@/services/httpClientFactory'
+    import { generateSalt, deriveKey, encryptSecret, createTestValue } from '@/services/crypto'
+    import emergencyService from '@/services/emergencyService'
     import biometricService from '@/services/biometric.js'
 
     const errorHandler = useErrorHandler()
@@ -26,8 +28,6 @@
 
     const biometricSupported  = ref(false)
     const biometricEnrolled   = ref(false)
-    const isBiometricEnrolling = ref(false)
-    const bioEnrollPassword   = ref('')
 
     const formUnlock = reactive(new Form({
         masterPassword : '',
@@ -35,6 +35,13 @@
     const formDisable = reactive(new Form({
         password : '',
     }))
+    // B5: master-password rotation form
+    const formRotate = reactive(new Form({
+        currentPassword : '',
+        newPassword     : '',
+        confirmPassword : '',
+    }))
+    const isRotating = ref(false)
 
     // Computed states
     const isEnabled = computed(() => encryptionStatus.value?.encryption_enabled === true)
@@ -168,21 +175,88 @@
         }
     }
 
-    async function enrollBiometric() {
-        if (!bioEnrollPassword.value) {
-            notify.alert({ text: t('error.master_password_required_for_biometric') })
+    /**
+     * B5: rotate the E2EE master password client-side (zero-knowledge).
+     *
+     * Verifies the current password, decrypts every encrypted secret with the
+     * old key, re-encrypts them under a key derived from the new password +
+     * a fresh salt, then submits the new credentials and the re-encrypted
+     * secrets. Emergency wrapped keys are re-wrapped for the new password so
+     * the dead man's switch keeps working after rotation (RT3).
+     */
+    async function rotateMasterPassword() {
+        if (formRotate.newPassword !== formRotate.confirmPassword) {
+            formRotate.errors.set('confirmPassword', t('error.passwords_do_not_match'))
             return
         }
-        isBiometricEnrolling.value = true
+        isRotating.value = true
         try {
-            await biometricService.enrollWithMasterPassword(user.email, bioEnrollPassword.value)
-            biometricEnrolled.value = true
-            bioEnrollPassword.value = ''
-            notify.success({ text: t('notification.biometric_enrolled') })
-        } catch (e) {
-            notify.alert({ text: t('error.biometric_enrollment_failed') + ': ' + e.message })
+            // 1. Verify the current password against the stored test value.
+            const infoResponse = await apiClient.get('/encryption/info')
+            const { encryption_salt: currentSalt, encryption_test_value: currentTestValue } = infoResponse.data
+            const oldKeyValid = await cryptoStore.unlockVault(formRotate.currentPassword, currentSalt, currentTestValue)
+            if (!oldKeyValid) {
+                formRotate.errors.set('currentPassword', t('error.invalid_master_password'))
+                return
+            }
+
+            // 2. Fetch and decrypt every encrypted account with the old key
+            //    (plaintext stays in memory only, never leaves the browser).
+            const { data: accounts } = await apiClient.get('/twofaccounts', { params: { withSecret: true } }).catch(() => ({ data: [] }))
+            const decryptedAccounts = []
+            for (const account of (accounts.data ?? accounts)) {
+                if (!account.encrypted) continue
+                const decrypted = await cryptoStore.decryptAccountData(account)
+                decryptedAccounts.push({ id: account.id, secret: decrypted.secret })
+            }
+
+            // 3. Derive the NEW key (new salt) + fresh test value, and
+            //    re-encrypt every secret under it in one pass.
+            const newSalt = generateSalt()
+            const newKey = await deriveKey(formRotate.newPassword, newSalt)
+            const newTestValue = await createTestValue(newKey)
+            const reEncrypted = []
+            for (const item of decryptedAccounts) {
+                const envelope = await encryptSecret(item.secret, newKey)
+                reEncrypted.push({ id: item.id, secret: JSON.stringify(envelope) })
+            }
+
+            // 4. Submit new credentials, then the re-encrypted secrets.
+            await apiClient.post('/encryption/credentials', {
+                encryption_salt: newSalt,
+                encryption_test_value: newTestValue,
+            })
+            await apiClient.post('/encryption/bulk-secrets', { accounts: reEncrypted })
+
+            // 5. Re-wrap emergency keys for the new password (updateOrCreate
+            // per contact — same flow as designation).
+            try {
+                const { wrapSecretForMember } = await import('@/services/keySharingService')
+                const { data: contacts } = await emergencyService.getContacts()
+                for (const contact of (contacts ?? [])) {
+                    if (['revoked'].includes(contact.status)) continue
+                    const { data: keyInfo } = await emergencyService.granteeKeyInfo({ email: contact.email }).catch(() => ({ data: null }))
+                    if (!keyInfo?.public_key) continue
+                    await emergencyService.addContact({
+                        email: contact.email,
+                        wait_days: contact.wait_days,
+                        access_type: contact.access_type,
+                        encrypted_key: await wrapSecretForMember(formRotate.newPassword, keyInfo.public_key),
+                        grantee_public_key_fingerprint: keyInfo.fingerprint,
+                    })
+                }
+            } catch (e) {
+                notify.warn({ text: t('warning.emergency_keys_rewrap_failed') })
+            }
+
+            // 6. Refresh the in-memory key to the new credentials.
+            await cryptoStore.unlockVault(formRotate.newPassword, newSalt, newTestValue)
+            formRotate.reset()
+            notify.success({ text: t('notification.master_password_rotated') })
+        } catch (error) {
+            errorHandler.show(error)
         } finally {
-            isBiometricEnrolling.value = false
+            isRotating.value = false
         }
     }
 
@@ -285,22 +359,31 @@
                             </form>
                         </div>
 
+                        <!-- Change master password (B5 rotation) -->
+                        <h4 class="title is-4 pt-5">{{ $t('heading.rotate_master_password') }}</h4>
+                        <p class="mb-3 is-size-7">{{ $t('message.rotate_master_password_desc') }}</p>
+                        <form @submit.prevent="rotateMasterPassword" @keydown="formRotate.onKeydown($event)">
+                            <FormField v-model="formRotate.currentPassword" fieldName="currentPassword" :errorMessage="formRotate.errors.get('currentPassword')" inputType="password" idSuffix="ForRotation" autocomplete="current-password" label="field.current_password" />
+                            <FormField v-model="formRotate.newPassword" fieldName="newPassword" :errorMessage="formRotate.errors.get('newPassword')" inputType="password" idSuffix="ForRotation" autocomplete="new-password" label="field.new_master_password" />
+                            <FormField v-model="formRotate.confirmPassword" fieldName="confirmPassword" :errorMessage="formRotate.errors.get('confirmPassword')" inputType="password" idSuffix="ForRotation" autocomplete="new-password" label="field.confirm_new_master_password" />
+                            <FormButtons :isBusy="isRotating" submitLabel="label.change_master_password" submitId="btnRotateMasterPassword" />
+                        </form>
+
                         <!-- Biometric Unlock -->
                         <template v-if="biometricSupported">
                             <h4 class="title is-4 pt-5">{{ $t('heading.biometric_unlock') }}</h4>
                             <div v-if="biometricEnrolled" class="notification is-success is-size-7 mb-3">
                                 {{ $t('message.biometric_enrolled') }}
                             </div>
-                            <div v-if="!biometricEnrolled">
-                                <p class="mb-3 is-size-7">{{ $t('message.biometric_enrollment_desc') }}</p>
-                                <div class="field">
-                                    <label class="label is-size-7">{{ $t('field.master_password') }}</label>
-                                    <input class="input is-small" type="password" v-model="bioEnrollPassword" autocomplete="current-password" />
-                                    <p class="help">{{ $t('message.biometric_password_help') }}</p>
-                                </div>
-                                <VueButton :isLoading="isBiometricEnrolling" @click="enrollBiometric" class="button is-info">
-                                    {{ $t('label.enable_biometric') }}
-                                </VueButton>
+                            <!-- B6/E12: biometric enrollment is disabled in this
+                                 release — the previous storage scheme kept the
+                                 master password recoverable from disk without a
+                                 biometric ceremony (wrapping key stored next to
+                                 the ciphertext). Only removal of previously
+                                 stored data is offered until a WebAuthn-PRF
+                                 bound implementation lands. -->
+                            <div v-if="!biometricEnrolled" class="notification is-warning is-size-7">
+                                {{ $t('message.biometric_disabled_security') }}
                             </div>
                             <div v-else>
                                 <VueButton @click="unenrollBiometric" class="button is-warning is-light">

@@ -83,4 +83,28 @@ class UserInvitationRegistrationTest extends FeatureTestCase
         $response->assertStatus(422);
         $this->assertDatabaseMissing('users', ['email' => 'newuser@synthetic.example']);
     }
+
+    #[Test]
+    public function test_cannot_register_with_a_valid_invitation_under_a_mismatched_email()
+    {
+        // A13: the invitation is bound to the invited email - a link holder
+        // must not consume it by registering under any other address.
+        $admin = User::factory()->administrator()->create();
+        $invitation = UserInvitation::factory()->create([
+            'invited_by_id' => $admin->id,
+            'email' => 'invited@synthetic.example',
+        ]);
+
+        $response = $this->postJson('/user', array_merge($this->validPayload('intruder@synthetic.example'), [
+            'invitation' => $invitation->token,
+        ]));
+
+        $response->assertStatus(422);
+
+        // Invitation NOT consumed, no user created.
+        $invitation->refresh();
+        $this->assertNull($invitation->accepted_at);
+        $this->assertDatabaseMissing('users', ['email' => 'intruder@synthetic.example']);
+        $this->assertDatabaseMissing('users', ['email' => 'invited@synthetic.example']);
+    }
 }

@@ -91,9 +91,15 @@ class TwoFAccountController extends Controller
                         $q->where('shared_by', $request->user()->id);
                     });
                 } elseif ($groupId === \App\Models\Group::SHARED_WITH_ME_ID) {
-                    $query->whereHas('sharedAccounts', function ($q) use ($request) {
-                        $q->where('member_id', $request->user()->id);
-                    });
+                    // B9: shared-with-me accounts are NOT owned by the requester,
+                    // so the query must be rebuilt without the user_id scope —
+                    // the previous `own accounts AND shared with me` intersection
+                    // could never match and the group was always empty.
+                    return new TwoFAccountCollection(
+                        TwoFAccount::whereHas('sharedAccounts', function ($q) use ($request) {
+                            $q->where('member_id', $request->user()->id);
+                        })->with('tags')->get()->sortBy('order_column')
+                    );
                 } else {
                     $query->where('group_id', $groupId);
                 }
@@ -209,8 +215,35 @@ class TwoFAccountController extends Controller
 
         $validated = $request->validated();
 
+        // RT7/B7: remember the current secret ciphertext so we can detect an
+        // actual secret change below (metadata-only edits must NOT revoke shares).
+        $secretBefore = $twofaccount->getOriginal('secret');
+
         $twofaccount->fillWithOtpParameters($validated, $twofaccount->icon && is_null(Arr::get($validated, 'icon', null)));
         $request->user()->twofaccounts()->save($twofaccount);
+
+        // If the secret changed and the account is shared, the members' wrapped
+        // keys are now stale — under E2EE the server cannot re-wrap the secret
+        // for each member, so the shares are revoked and the owner UI is told
+        // to re-share (it holds the member public keys client-side).
+        $sharesRevoked = false;
+        $revokedMembers = collect();
+        if ($secretBefore !== $twofaccount->secret) {
+            $staleShares = \App\Models\SharedAccount::with('member:id,name,email')
+                ->where('twofaccount_id', $twofaccount->id)
+                ->whereNotNull('member_id')
+                ->get();
+
+            if ($staleShares->isNotEmpty()) {
+                \App\Models\SharedAccount::where('twofaccount_id', $twofaccount->id)->delete();
+                $sharesRevoked = true;
+                $revokedMembers = $staleShares->pluck('member')->filter();
+                Log::notice('Shares revoked after secret change', [
+                    'twofaccount_id' => $twofaccount->id,
+                    'members'        => $revokedMembers->pluck('id')->all(),
+                ]);
+            }
+        }
 
         // Possible group change
         $groupId = Arr::get($validated, 'group_id', null);
@@ -230,9 +263,18 @@ class TwoFAccountController extends Controller
 
         $this->activityLogger->log($request->user(), PersonalAction::ACCOUNT_UPDATED, [], $twofaccount->id);
 
-        return (new TwoFAccountReadResource($twofaccount))
-            ->response()
-            ->setStatusCode(200);
+        $response = (new TwoFAccountReadResource($twofaccount))->response()->setStatusCode(200);
+
+        if ($sharesRevoked) {
+            // RT7: tell the owner UI which members lost access so it can offer
+            // a one-click re-share (the client holds member public keys).
+            $response->setData(collect($response->getData(true))->merge([
+                'shares_revoked' => true,
+                'revoked_members' => $revokedMembers->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'email' => $m->email])->values(),
+            ]));
+        }
+
+        return $response;
     }
 
     /**
@@ -464,6 +506,11 @@ class TwoFAccountController extends Controller
 
         $this->authorize('transferOwnership', $twofaccount);
 
+        // B20 (dispositioned): under E2EE the server cannot verify that the
+        // owner re-encrypted the secret for the new owner's key — the client
+        // is trusted to re-wrap before transferring, and the UI shows an
+        // explicit confirmation for this reason. Server-side verification is
+        // impossible without breaking zero-knowledge; documented limitation.
         $newOwner = User::findOrFail($validated['new_owner_id']);
 
         $service     = app(\App\Services\TwoFAccountService::class);

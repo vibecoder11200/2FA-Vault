@@ -42,7 +42,7 @@ class EncryptionControllerDisableTest extends FeatureTestCase
             'user_id' => $this->user->id,
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->deleteJson('/api/v1/encryption/disable', [
                 'password' => 'password',
@@ -60,7 +60,7 @@ class EncryptionControllerDisableTest extends FeatureTestCase
             'user_id' => $this->user->id,
         ]);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->deleteJson('/api/v1/encryption/disable', [
                 'password' => 'password',
@@ -74,11 +74,32 @@ class EncryptionControllerDisableTest extends FeatureTestCase
     }
 
     #[Test]
+    public function test_disable_returns_422_when_encrypted_secure_notes_exist() : void
+    {
+        // B10: an E2EE-encrypted note (client-side JSON crypto envelope) must
+        // block disabling E2EE, otherwise the note is permanently unreadable.
+        \App\Models\SecureNote::factory()->forUser($this->user)->create([
+            'title'   => json_encode(['ciphertext' => 'enc', 'iv' => 'iv', 'authTag' => 'tag']),
+            'content' => json_encode(['ciphertext' => 'enc', 'iv' => 'iv', 'authTag' => 'tag']),
+        ]);
+
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
+        $response = $this
+            ->deleteJson('/api/v1/encryption/disable', [
+                'password' => 'password',
+                'confirm'  => true,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonStructure(['message', 'encrypted_count']);
+    }
+
+    #[Test]
     public function test_disable_succeeds_when_no_encrypted_accounts() : void
     {
         // No encrypted TwoFAccounts created
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->deleteJson('/api/v1/encryption/disable', [
                 'password' => 'password',
@@ -99,7 +120,7 @@ class EncryptionControllerDisableTest extends FeatureTestCase
     #[Test]
     public function test_disable_returns_401_with_wrong_password() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->deleteJson('/api/v1/encryption/disable', [
                 'password' => 'wrong-password',
@@ -119,7 +140,7 @@ class EncryptionControllerDisableTest extends FeatureTestCase
     #[Test]
     public function test_disable_requires_password() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->deleteJson('/api/v1/encryption/disable', [
                 'confirm' => true,
@@ -132,7 +153,7 @@ class EncryptionControllerDisableTest extends FeatureTestCase
     #[Test]
     public function test_disable_requires_confirm_accepted() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->deleteJson('/api/v1/encryption/disable', [
                 'password' => 'password',
@@ -169,7 +190,7 @@ class EncryptionControllerDisableTest extends FeatureTestCase
         ]);
 
         // Our user tries to disable — blocked by their own accounts
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->deleteJson('/api/v1/encryption/disable', [
                 'password' => 'password',

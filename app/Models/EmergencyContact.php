@@ -14,6 +14,7 @@ class EmergencyContact extends Model
         'owner_id', 'trusted_user_id', 'email',
         'status', 'access_type', 'wait_days',
         'encrypted_key', 'granted_at',
+        'grantee_public_key_fingerprint',
     ];
 
     protected $casts = [

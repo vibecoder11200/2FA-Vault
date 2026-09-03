@@ -49,8 +49,15 @@ class BackupDestinationService
 
             return ['ok' => true, 'message' => 'Connection successful'];
         } catch (\Throwable $e) {
-            // Do not leak credentials — return a generic failure
-            return ['ok' => false, 'message' => 'Connection failed: ' . $e->getMessage()];
+            // C11: error details (which may embed credentials from URLs) are
+            // logged server-side only — the client gets a generic message.
+            \Illuminate\Support\Facades\Log::warning('Backup destination connection test failed', [
+                'destination_id' => $destination->id,
+                'type'           => $destination->type,
+                'error'          => $e->getMessage(),
+            ]);
+
+            return ['ok' => false, 'message' => 'Connection failed. Check the server logs for details.'];
         }
     }
 
@@ -75,11 +82,20 @@ class BackupDestinationService
 
     private function sendLocal(array $config, string $payload, string $filename): void
     {
-        $dir = $config['path'] ?? 'backups';
-        // Prevent path traversal — keep within the local disk root
-        $dir = ltrim($dir, '/.');
+        $dir = str_replace('\\', '/', (string) ($config['path'] ?? 'backups'));
 
-        Storage::disk('local')->put($dir . '/' . $filename, $payload);
+        // C13: traversal guard — reject any '..' segment (ltrim('/.') alone
+        // let "storage/../.." escape) and normalize away '.'/'empty' parts.
+        $segments = array_values(array_filter(
+            explode('/', $dir),
+            fn (string $segment) => $segment !== '' && $segment !== '.'
+        ));
+
+        if (in_array('..', $segments, true)) {
+            throw new \RuntimeException('Invalid backup destination path');
+        }
+
+        Storage::disk('local')->put(implode('/', $segments) . '/' . $filename, $payload);
     }
 
     private function sendS3(array $config, string $payload, string $filename): void
@@ -107,6 +123,12 @@ class BackupDestinationService
             'bucket'                  => $config['bucket'],
             'endpoint'                => $config['endpoint'] ?? null,
             'use_path_style_endpoint' => (bool) ($config['endpoint'] ?? false),
+            // C11: bounded HTTP timings so a hung endpoint cannot burn the
+            // whole 300 s job timeout.
+            'http'                    => [
+                'timeout'         => 60,
+                'connect_timeout' => 10,
+            ],
             'throw'                   => true,
         ]);
     }
@@ -114,11 +136,15 @@ class BackupDestinationService
     private function resolveWebDavDisk(array $config)
     {
         return Storage::build([
-            'driver'    => 'webdav',
-            'baseUri'   => $config['url'],
-            'userName'  => $config['username'],
-            'password'  => $config['password'],
+            'driver'     => 'webdav',
+            'baseUri'    => $config['url'],
+            'userName'   => $config['username'],
+            'password'   => $config['password'],
             'pathPrefix' => $config['path'] ?? '',
+            // C11: same bounded timings as S3 (applied via curl settings in
+            // the custom webdav driver, see AppServiceProvider).
+            'timeout'         => 60,
+            'connect_timeout' => 10,
         ]);
     }
 }

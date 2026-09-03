@@ -8,6 +8,7 @@ use App\Api\v1\Resources\UserAuthenticationResource;
 use App\Api\v1\Resources\UserManagerResource;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\CredentialRevocationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
@@ -60,6 +61,11 @@ class UserManagerController extends Controller
             $credentials, function ($user) {
                 $user->resetPassword();
                 $user->save();
+
+                // An admin-triggered password reset invalidates every
+                // credential of the target user: revoke PATs, evict sessions
+                // and re-arm the vault lock.
+                app(CredentialRevocationService::class)->revokeAllFor($user->refresh());
             }
         );
 
@@ -131,9 +137,9 @@ class UserManagerController extends Controller
         $tokens = $tokenRepository->forUser($user);
 
         $tokens->load('client')->filter(function ($token) {
-            return $token->client->personal_access_client && ! $token->revoked; /** @phpstan-ignore-line */
+            return $token->client->personal_access_client && ! $token->revoked;
         })->each(function ($token) {
-            $token->revoke(); /** @phpstan-ignore-line */
+            $token->revoke();
         });
 
         Log::info(sprintf('All personal access tokens for User ID #%s have been revoked', $user->id));

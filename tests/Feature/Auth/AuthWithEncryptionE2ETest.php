@@ -42,7 +42,7 @@ class AuthWithEncryptionE2ETest extends TestCase
      */
     private function authUser() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
     }
 
     /**

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UserStoreRequest;
 use App\Models\User;
 use App\Models\UserInvitation;
+use App\Services\EmergencyAccessService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Http\Response;
@@ -41,8 +42,17 @@ class RegisterController extends Controller
         if ($request->has('invitation')) {
             $invitation = UserInvitation::where('token', $request->invitation)->first();
 
-            if (!$invitation || $invitation->isExpired() || !$invitation->isPending()) {
+            if (! $invitation || $invitation->isExpired() || ! $invitation->isPending()) {
                 return response()->json(['message' => 'Invalid or expired invitation'], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            // The invitation is bound to the invited email: a registration
+            // under any other email must not consume it (A13).
+            if ($request->filled('email') && strtolower($request->input('email')) !== strtolower($invitation->email)) {
+                return response()->json([
+                    'message' => 'The email does not match the invited email address',
+                    'errors'  => ['email' => ['The email does not match the invited email address']],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             // Bypass registration open check for valid invitations
@@ -59,24 +69,36 @@ class RegisterController extends Controller
 
         event(new Registered($user = $this->create($validated)));
 
+        // B17: attach pending emergency contacts that were designated for
+        // this email before the user registered (the owner is nudged to
+        // re-save the wrapped key now that the grantee exists).
+        app(EmergencyAccessService::class)->linkPendingContacts($user);
+
         // Mark invitation as accepted
         if ($invitation) {
             $invitation->update(['accepted_at' => now()]);
         }
 
         $this->guard()->login($user);
+
+        // Session fixation hardening: the pre-authentication session id must
+        // not survive authentication.
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
+
         /**
          * @var \App\Models\User|null
          */
         $user = $this->guard()->user();
 
         return response()->json([
-            'message'        => 'account created',
-            'name'           => $user->name,
-            'email'          => $user->email,
-            'preferences'    => $user->preferences,
-            'is_admin'       => $user->isAdministrator(),
-            'e2ee_required'  => app(\App\Services\EncryptionService::class)->isEncryptionRequired($user),
+            'message'       => 'account created',
+            'name'          => $user->name,
+            'email'         => $user->email,
+            'preferences'   => $user->preferences,
+            'is_admin'      => $user->isAdministrator(),
+            'e2ee_required' => app(\App\Services\EncryptionService::class)->isEncryptionRequired($user),
         ], 201);
     }
 
@@ -88,14 +110,14 @@ class RegisterController extends Controller
     protected function create(array $data)
     {
         $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-            'encryption_enabled' => false,
-            'encryption_salt' => null,
+            'name'                  => $data['name'],
+            'email'                 => $data['email'],
+            'password'              => Hash::make($data['password']),
+            'encryption_enabled'    => false,
+            'encryption_salt'       => null,
             'encryption_test_value' => null,
-            'encryption_version' => 0,
-            'vault_locked' => false,
+            'encryption_version'    => 0,
+            'vault_locked'          => false,
         ]);
 
         Log::info(sprintf('User ID #%s created', $user->id));

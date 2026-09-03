@@ -11,6 +11,7 @@ use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Log;
 use Laragear\WebAuthn\Enums\UserVerification;
@@ -52,13 +53,25 @@ class WebAuthnLoginController extends Controller
                 break;
         }
 
-        return $request->toVerify($request->validate([
+        $validated = $request->validate([
             'email' => [
                 'required',
                 'email',
-                new \App\Rules\CaseInsensitiveEmailExists,
             ],
-        ]));
+        ]);
+
+        // Return a 200-shaped generic response for an unknown email instead
+        // of a 422 validation failure: the 200-vs-422 difference was a
+        // registered-email enumeration oracle (A8). The response body is
+        // deliberately identical to what the SPA already handles for failed
+        // challenges. Note: the password login and forgot-password flows
+        // intentionally keep their exists-rules (upstream UX parity); they
+        // are throttled, which bounds the oracle.
+        if (! User::whereRaw('email = ?' . (DB::connection()->getDriverName() === 'sqlite' ? ' COLLATE NOCASE' : ''), [strtolower($validated['email'])])->exists()) {
+            return response()->json(['message' => __('auth.failed')], 200);
+        }
+
+        return $request->toVerify($validated);
     }
 
     /**
@@ -125,6 +138,10 @@ class WebAuthnLoginController extends Controller
     protected function sendLoginResponse(WebauthnAssertedRequest $request)
     {
         $this->clearLoginAttempts($request);
+
+        // Session fixation hardening: the pre-authentication session id must
+        // not survive authentication.
+        $request->session()->regenerate();
 
         /**
          * @var \App\Models\User|null

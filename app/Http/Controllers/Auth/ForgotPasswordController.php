@@ -28,6 +28,9 @@ class ForgotPasswordController extends Controller
      */
     protected function validateEmail(Request $request)
     {
+        // A8: the exists-rule deliberately stays (upstream 2FAuth UX parity).
+        // The route is throttled (3/min/IP), which bounds the enumeration
+        // oracle this creates.
         $request->validate(['email' => 'required|exists:users,email']);
     }
 }

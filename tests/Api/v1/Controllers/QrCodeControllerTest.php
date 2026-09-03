@@ -62,7 +62,7 @@ class QrCodeControllerTest extends FeatureTestCase
     #[Test]
     public function test_show_qrcode_returns_base64_image()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/twofaccounts/' . $this->twofaccount->id . '/qrcode')
             ->assertJsonStructure([
@@ -76,7 +76,7 @@ class QrCodeControllerTest extends FeatureTestCase
     #[Test]
     public function test_show_missing_qrcode_returns_not_found()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/twofaccounts/1000/qrcode')
             ->assertNotFound()
@@ -88,7 +88,7 @@ class QrCodeControllerTest extends FeatureTestCase
     #[Test]
     public function test_show_qrcode_of_another_user_is_forbidden()
     {
-        Passport::actingAs($this->anotherUser, [], 'api-guard');
+        Passport::actingAs($this->anotherUser, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/twofaccounts/' . $this->twofaccount->id . '/qrcode')
             ->assertForbidden()
@@ -102,7 +102,7 @@ class QrCodeControllerTest extends FeatureTestCase
     {
         $file = LocalFile::fake()->validQrcode();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this->withHeaders(['Content-Type' => 'multipart/form-data'])
             ->json('POST', '/api/v1/qrcode/decode', [
                 'qrcode'      => $file,
@@ -117,7 +117,7 @@ class QrCodeControllerTest extends FeatureTestCase
     #[Test]
     public function test_decode_missing_qrcode_return_validation_error()
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', '/api/v1/qrcode/decode', [
                 'qrcode' => '',
@@ -130,7 +130,7 @@ class QrCodeControllerTest extends FeatureTestCase
     {
         $file = LocalFile::fake()->invalidQrcode();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $response = $this->withHeaders(['Content-Type' => 'multipart/form-data'])
             ->json('POST', '/api/v1/qrcode/decode', [
                 'qrcode'      => $file,

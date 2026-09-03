@@ -91,6 +91,12 @@ class SocialiteController extends Controller
 
         Auth::guard()->login($user);
 
+        // Session fixation hardening: the pre-authentication session id must
+        // not survive authentication.
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
+
         return redirect('/accounts');
     }
 }

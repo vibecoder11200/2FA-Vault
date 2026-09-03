@@ -150,6 +150,7 @@
         :isInitingKeys="isInitingKeys"
         :isSharing="isSharing"
         :members="nonOwnerMembers"
+        :accounts="sharableAccounts"
         @close="showShareModal = false"
         @init-key-pair="initKeyPair"
         @share="handleShareEncrypted"
@@ -176,6 +177,8 @@ const router = useRouter()
 const teamsStore = useTeamsStore()
 const notifyStore = useNotifyStore()
 const userStore = useUserStore()
+const twofaccountsStore = useTwofaccounts()
+const cryptoStore = useCryptoStore()
 
 const team = ref(null)
 const isLoading = ref(true)
@@ -198,10 +201,20 @@ const canDelete = computed(() => isOwner.value)
 const canInvite = computed(() => ['owner', 'admin'].includes(userRole.value))
 const canManageMembers = computed(() => ['owner', 'admin'].includes(userRole.value))
 const nonOwnerMembers = computed(() => (team.value?.members || []).filter(m => m.role !== 'owner'))
+// B1: the owner's own accounts, offered in the share modal. Already-shared
+// accounts are excluded so they cannot be shared twice with stale keys.
+const sharableAccounts = computed(() => {
+    const sharedIds = new Set((sharedAccounts.value || []).map(sa => sa.twofaccount_id ?? sa.id))
+
+    return (twofaccountsStore.items || []).filter(account => !sharedIds.has(account.id))
+})
 
 onMounted(async () => {
   await loadTeam()
   ensureKeyPair().then(() => { keyPairReady.value = true }).catch(() => {})
+  // B1: the share modal lists the owner's own accounts; make sure they are
+  // loaded (no-op when the store is already populated).
+  twofaccountsStore.fetch().catch(() => {})
 })
 
 async function loadTeam() {
@@ -337,12 +350,25 @@ async function initKeyPair() {
   } finally { isInitingKeys.value = false }
 }
 
-async function handleShareEncrypted({ secret, memberIds, accessLevel }) {
-  if (!secret || memberIds.length === 0) return
+async function handleShareEncrypted({ accountId, memberIds, accessLevel }) {
+  if (!accountId || memberIds.length === 0) return
   isSharing.value = true
   try {
+    const account = (twofaccountsStore.items || []).find(a => a.id === accountId)
+    if (!account) throw new Error('Account not found')
+
+    // B1: decrypt client-side (E2EE accounts) or take the plaintext secret,
+    // then let the sharing service wrap it per member with RSA-OAEP.
+    let decryptedSecret = account.secret
+    if (account.encrypted) {
+      if (!cryptoStore.isUnlocked) throw new Error('Unlock the vault before sharing an encrypted account')
+      const decrypted = await cryptoStore.decryptAccountData(account)
+      decryptedSecret = decrypted.secret
+    }
+    if (!decryptedSecret) throw new Error('The selected account has no secret to share')
+
     const members = (team.value?.members || []).filter(m => memberIds.includes(m.id))
-    await teamsStore.shareEncrypted(team.value.id, 0, secret, members, accessLevel)
+    await teamsStore.shareEncrypted(team.value.id, accountId, decryptedSecret, members, accessLevel)
     notifyStore.success('Account shared with encrypted keys')
     showShareModal.value = false
     const shared = await teamsStore.fetchSharedAccounts(team.value.id)

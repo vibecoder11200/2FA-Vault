@@ -37,7 +37,7 @@ class OtpLogControllerTest extends FeatureTestCase
             'generated_at'   => now(),
         ]);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->getJson('/api/v1/otp-logs');
 
         $response->assertStatus(200)
@@ -62,7 +62,7 @@ class OtpLogControllerTest extends FeatureTestCase
         ]);
 
         // The "other" user must not see the owner's logs.
-        Passport::actingAs($other, [], 'api-guard');
+        Passport::actingAs($other, ['legacy_full_access'], 'api-guard');
         $response = $this->getJson('/api/v1/otp-logs');
 
         $response->assertStatus(200)
@@ -85,7 +85,7 @@ class OtpLogControllerTest extends FeatureTestCase
         ]);
 
         // Owner sees their own IP.
-        Passport::actingAs($owner, [], 'api-guard');
+        Passport::actingAs($owner, ['legacy_full_access'], 'api-guard');
         $this
             ->getJson('/api/v1/otp-logs')
             ->assertJsonPath('data.0.ip_address', '203.0.113.5');
@@ -104,7 +104,7 @@ class OtpLogControllerTest extends FeatureTestCase
             'generated_at'   => now(),
         ]);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->deleteJson('/api/v1/otp-logs')
             ->assertStatus(204);
@@ -127,7 +127,7 @@ class OtpLogControllerTest extends FeatureTestCase
             'twofaccount_id' => $accountB->id, 'otp_type' => 'totp', 'generated_at' => now(),
         ]);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->getJson('/api/v1/otp-logs?twofaccount_id=' . $accountA->id)
             ->assertJsonCount(1, 'data')

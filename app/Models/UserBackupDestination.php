@@ -33,7 +33,17 @@ class UserBackupDestination extends Model
     }
 
     /**
-     * config is stored as JSON, optionally encrypted (CanEncryptField).
+     * config holds destination credentials (and the per-destination backup
+     * encryption password) — it is ALWAYS encrypted at rest via
+     * CanEncryptField, regardless of the global useEncryption setting (C11).
+     */
+    protected function alwaysEncryptFields(): bool
+    {
+        return true;
+    }
+
+    /**
+     * config is stored as JSON, always encrypted (CanEncryptField).
      * Serialize arrays to JSON on write, deserialize on read.
      */
     public function getConfigAttribute(mixed $value): mixed

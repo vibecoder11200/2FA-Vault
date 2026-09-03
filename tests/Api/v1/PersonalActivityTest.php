@@ -26,7 +26,7 @@ class PersonalActivityTest extends TestCase
         // Another user's logs must not leak
         PersonalActivityLog::factory()->create();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->getJson('/api/v1/user/activity');
 
         $response->assertStatus(200)
@@ -39,7 +39,7 @@ class PersonalActivityTest extends TestCase
         $user = User::factory()->create();
         PersonalActivityLog::factory()->forUser($user)->count(2)->create();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->deleteJson('/api/v1/user/activity');
 
         $response->assertStatus(204);
@@ -54,7 +54,7 @@ class PersonalActivityTest extends TestCase
         PersonalActivityLog::factory()->forUser($user)->create();
         PersonalActivityLog::factory()->forUser($other)->create();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this->deleteJson('/api/v1/user/activity');
 
         $this->assertSame(0, PersonalActivityLog::where('user_id', $user->id)->count());

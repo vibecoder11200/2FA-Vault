@@ -29,15 +29,11 @@ class BackupDestinationServiceTest extends TestCase
         $dest->user_id = User::factory()->create()->id;
         $dest->label = 'test';
         $dest->type = $type;
-        // Assign directly to attributes to bypass the encrypting mutator so the
-        // in-memory config stays an array (encryption is off by default in tests).
-        $dest->setRawAttributes([
-            'user_id' => $dest->user_id,
-            'label' => 'test',
-            'type' => $type,
-            'config' => $config,
-            'is_active' => true,
-        ]);
+        $dest->is_active = true;
+        // Assign through the mutator so config is held exactly like a real
+        // row (CanEncryptField always encrypts it) and reads back as the
+        // decoded array the service expects.
+        $dest->config = $config;
 
         return $dest;
     }

@@ -9,7 +9,10 @@ import { decryptSecret } from './crypto.js';
 class OfflineTotpService {
   constructor() {
     this.isOfflineMode = !navigator.onLine;
-    this.masterPassword = null; // Session memory only
+    // B18: derived non-extractable CryptoKeys keyed by salt — the raw master
+    // password is NEVER retained; it is used once at unlock to derive a key
+    // per cached salt and then discarded.
+    this.derivedKeys = new Map();
     this.setupNetworkListener();
   }
 
@@ -29,19 +32,26 @@ class OfflineTotpService {
   }
 
   /**
-   * Unlock vault with master password (store in memory only)
-   * @param {string} password - Master password
+   * Unlock vault: derive a CryptoKey for every salt found in the offline
+   * cache, then drop the master password (B18).
+   * @param {string} password - Master password (used once, never stored)
    */
-  unlockVault(password) {
-    this.masterPassword = password;
-    if (import.meta.env.DEV) console.log('[OfflineTotp] Vault unlocked');
+  async unlockVault(password) {
+    const { deriveKey } = await import('./crypto.js');
+    const accounts = await offlineDb.getAccounts().catch(() => []);
+    const salts = [...new Set(accounts.map(a => a.salt).filter(Boolean))];
+
+    for (const salt of salts) {
+      this.derivedKeys.set(salt, await deriveKey(password, salt));
+    }
+    if (import.meta.env.DEV) console.log('[OfflineTotp] Vault unlocked (' + this.derivedKeys.size + ' key(s) derived)');
   }
 
   /**
-   * Lock vault (clear master password from memory)
+   * Lock vault (clear every derived key from memory)
    */
   lockVault() {
-    this.masterPassword = null;
+    this.derivedKeys.clear();
     if (import.meta.env.DEV) console.log('[OfflineTotp] Vault locked');
   }
 
@@ -49,7 +59,7 @@ class OfflineTotpService {
    * Check if vault is unlocked
    */
   isVaultUnlocked() {
-    return this.masterPassword !== null;
+    return this.derivedKeys.size > 0;
   }
 
   /**
@@ -127,7 +137,7 @@ class OfflineTotpService {
   }
 
   /**
-   * Decrypt account secret using master password
+   * Decrypt account secret using the cached derived key (B18)
    * @param {object} account - Encrypted account object
    */
   async decryptAccountSecret(account) {
@@ -135,14 +145,12 @@ class OfflineTotpService {
       throw new Error('No encrypted secret found');
     }
 
+    if (!account.salt || !this.derivedKeys.has(account.salt)) {
+      throw new Error('No derived key for this account. Re-unlock the vault.');
+    }
+
     try {
-      // Derive key from master password and salt
-      const { deriveKey, decryptSecret } = await import('./crypto.js');
-
-      const key = await deriveKey(this.masterPassword, account.salt);
-
-      // Use crypto.js decryptSecret function
-      const secret = await decryptSecret(account.encryptedSecret, key);
+      const secret = await decryptSecret(account.encryptedSecret, this.derivedKeys.get(account.salt));
 
       return secret;
     } catch (error) {

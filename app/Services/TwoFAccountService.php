@@ -120,6 +120,12 @@ class TwoFAccountService
      */
     private static function markAsDuplicate(Collection $twofaccounts) : Collection
     {
+        // B19 (dispositioned): under E2EE each secret ciphertext is unique
+        // (random IV), so this server-side ciphertext comparison can never
+        // match for encrypted accounts — duplicate detection is effectively
+        // client-side-only (the client compares decrypted secrets it already
+        // holds in memory). Server-side dedup is impossible without breaking
+        // zero-knowledge; documented limitation.
         $userTwofaccounts = Auth::user()->twofaccounts;
 
         $twofaccounts = $twofaccounts->map(function ($twofaccount, $key) use ($userTwofaccounts) {

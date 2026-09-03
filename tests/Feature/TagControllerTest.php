@@ -36,7 +36,7 @@ class TagControllerTest extends TestCase
         Tag::factory()->for($user)->create(['name' => 'Alpha']);
         Tag::factory()->for($user)->create(['name' => 'Bravo']);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->getJson('/api/v1/tags');
 
         $response->assertStatus(200)
@@ -50,7 +50,7 @@ class TagControllerTest extends TestCase
     {
         $user = $this->createEncryptedUser();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->postJson('/api/v1/tags', [
             'name'  => 'Work',
             'color' => '#ff5500',
@@ -74,7 +74,7 @@ class TagControllerTest extends TestCase
     {
         $user = $this->createEncryptedUser();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->postJson('/api/v1/tags', [
             'name' => 'NoColor',
         ]);
@@ -98,7 +98,7 @@ class TagControllerTest extends TestCase
         $user = $this->createEncryptedUser();
         $tag  = Tag::factory()->for($user)->create(['name' => 'Old', 'color' => '#111111']);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->putJson("/api/v1/tags/{$tag->id}", [
             'name'  => 'New',
             'color' => '#abcdef',
@@ -123,7 +123,7 @@ class TagControllerTest extends TestCase
         $user = $this->createEncryptedUser();
         $tag  = Tag::factory()->for($user)->create();
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->deleteJson("/api/v1/tags/{$tag->id}");
 
         $response->assertStatus(204);
@@ -138,13 +138,13 @@ class TagControllerTest extends TestCase
         $tag       = Tag::factory()->for($owner)->create();
 
         // Other user cannot update
-        Passport::actingAs($otherUser, [], 'api-guard');
+        Passport::actingAs($otherUser, ['legacy_full_access'], 'api-guard');
         $this
             ->putJson("/api/v1/tags/{$tag->id}", ['name' => 'Hacked'])
             ->assertStatus(403);
 
         // Other user cannot delete
-        Passport::actingAs($otherUser, [], 'api-guard');
+        Passport::actingAs($otherUser, ['legacy_full_access'], 'api-guard');
         $this
             ->deleteJson("/api/v1/tags/{$tag->id}")
             ->assertStatus(403);
@@ -162,7 +162,7 @@ class TagControllerTest extends TestCase
         $account = TwoFAccount::factory()->for($user)->create();
 
         // Sync both tags
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson("/api/v1/twofaccounts/{$account->id}/tags", [
                 'tags' => [$tag1->id, $tag2->id],
@@ -172,7 +172,7 @@ class TagControllerTest extends TestCase
         $this->assertCount(2, $account->fresh()->tags);
 
         // Sync to only one tag (replaces)
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson("/api/v1/twofaccounts/{$account->id}/tags", [
                 'tags' => [$tag1->id],
@@ -183,7 +183,7 @@ class TagControllerTest extends TestCase
         $this->assertEquals($tag1->id, $account->fresh()->tags->first()->id);
 
         // Sync to empty (removes all)
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->postJson("/api/v1/twofaccounts/{$account->id}/tags", [
                 'tags' => [],
@@ -199,7 +199,7 @@ class TagControllerTest extends TestCase
         $user = $this->createEncryptedUser();
 
         // Invalid hex format
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->postJson('/api/v1/tags', [
                 'name'  => 'BadColor',
@@ -208,7 +208,7 @@ class TagControllerTest extends TestCase
             ->assertStatus(422);
 
         // Partial hex (too short)
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->postJson('/api/v1/tags', [
                 'name'  => 'ShortHex',
@@ -217,7 +217,7 @@ class TagControllerTest extends TestCase
             ->assertStatus(422);
 
         // Missing hash prefix
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->postJson('/api/v1/tags', [
                 'name'  => 'NoHash',
@@ -226,7 +226,7 @@ class TagControllerTest extends TestCase
             ->assertStatus(422);
 
         // Valid hex succeeds
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->postJson('/api/v1/tags', [
                 'name'  => 'ValidColor',

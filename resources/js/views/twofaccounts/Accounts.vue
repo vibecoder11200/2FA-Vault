@@ -60,6 +60,15 @@
         if (val == false) otpDisplay.value?.clearOTP()
     })
 
+    // E8: when the vault locks (inactivity auto-lock), close any open OTP
+    // modal and clear its plaintext so an unattended screen shows nothing.
+    watch(() => bus.vaultLockedAt, () => {
+        if (bus.vaultLockedAt > 0) {
+            showOtpInModal.value = false
+            otpDisplay.value?.clearOTP()
+        }
+    })
+
     watch(() => twofaccounts.items, (val) => {
         if (bus.inManagementMode) setSortable()
     })
@@ -67,6 +76,14 @@
     watch(() => bus.inManagementMode, (val) => {
         if (val) setSortable()
     })
+
+    // B9: entering the "shared with me" virtual group loads the shared slice
+    // into the store (flagged is_shared); every other group view hides it.
+    watch(() => user.preferences.activeGroup, (val) => {
+        if (parseInt(val) === -4) {
+            twofaccounts.fetchSharedWithMe().catch(() => {})
+        }
+    }, { immediate: true })
 
     onMounted(async () => {
         if (!user.preferences.getOtpOnRequest) {

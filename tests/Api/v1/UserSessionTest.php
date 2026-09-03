@@ -62,7 +62,7 @@ class UserSessionTest extends TestCase
         $user = User::factory()->create();
         $this->seedSession($user);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->getJson('/api/v1/user/sessions')
             ->assertStatus(200)
@@ -77,7 +77,7 @@ class UserSessionTest extends TestCase
         $user    = User::factory()->create();
         $session = $this->seedSession($user, ['revoked' => true]);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $response = $this->getJson('/api/v1/user/sessions');
 
         $response->assertStatus(200)->assertJsonMissing(['id' => $session->id]);
@@ -89,7 +89,7 @@ class UserSessionTest extends TestCase
         $user    = User::factory()->create();
         $session = $this->seedSession($user);
 
-        Passport::actingAs($user, [], 'api-guard');
+        Passport::actingAs($user, ['legacy_full_access'], 'api-guard');
         $this
             ->deleteJson('/api/v1/user/sessions/' . $session->id)
             ->assertStatus(204);
@@ -105,7 +105,7 @@ class UserSessionTest extends TestCase
         $intruder = User::factory()->create();
         $session  = $this->seedSession($owner);
 
-        Passport::actingAs($intruder, [], 'api-guard');
+        Passport::actingAs($intruder, ['legacy_full_access'], 'api-guard');
         $this
             ->deleteJson('/api/v1/user/sessions/' . $session->id)
             ->assertNotFound();

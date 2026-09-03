@@ -91,7 +91,7 @@ class UserManagerControllerTest extends FeatureTestCase
     #[Test]
     public function test_index_returns_all_users_with_expected_user_manager_resources() : void
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/users')
             ->assertJsonCount(3)
@@ -133,7 +133,7 @@ class UserManagerControllerTest extends FeatureTestCase
     #[Test]
     public function test_show_returns_the_expected_user_manager_resource() : void
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/users/' . $this->user->id)
             ->assertJson([
@@ -158,7 +158,7 @@ class UserManagerControllerTest extends FeatureTestCase
     #[Test]
     public function test_show_returns_forbidden_to_non_admin_user() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/users/' . $this->anotherUser->id)
             ->assertForbidden()
@@ -176,7 +176,7 @@ class UserManagerControllerTest extends FeatureTestCase
         $user        = User::factory()->create();
         $oldPassword = $user->password;
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('PATCH', '/api/v1/users/' . $user->id . '/password/reset')
             ->assertOk();
@@ -202,7 +202,7 @@ class UserManagerControllerTest extends FeatureTestCase
         $path    = '/api/v1/users/' . $user->id . '/password/reset';
         $request = Request::create($path, 'PATCH');
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('PATCH', $path);
 
@@ -230,7 +230,7 @@ class UserManagerControllerTest extends FeatureTestCase
 
         $user = User::factory()->create();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('PATCH', '/api/v1/users/' . $user->id . '/password/reset')
             ->assertStatus(400)
@@ -260,7 +260,7 @@ class UserManagerControllerTest extends FeatureTestCase
 
         $user = User::factory()->create();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('PATCH', '/api/v1/users/' . $user->id . '/password/reset')
             ->assertStatus(400)
@@ -275,7 +275,7 @@ class UserManagerControllerTest extends FeatureTestCase
     #[Test]
     public function test_store_creates_the_user_and_returns_success()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('POST', '/api/v1/users', [
                 'name'                  => self::USERNAME,
@@ -300,7 +300,7 @@ class UserManagerControllerTest extends FeatureTestCase
         $userDefinition['password_confirmation'] = $userDefinition['password'];
         $request                                 = Request::create($path, 'POST');
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', $path, $userDefinition)
             ->assertCreated();
@@ -320,7 +320,7 @@ class UserManagerControllerTest extends FeatureTestCase
         $userDefinition['password_confirmation'] = $userDefinition['password'];
         $request                                 = Request::create($path, 'POST');
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('POST', $path, $userDefinition)
             ->assertCreated();
@@ -334,7 +334,7 @@ class UserManagerControllerTest extends FeatureTestCase
     #[Test]
     public function test_store_another_user_returns_forbidden() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('POST', '/api/v1/users', [
                 'name'                  => self::USERNAME,
@@ -361,14 +361,15 @@ class UserManagerControllerTest extends FeatureTestCase
 
         $tokenRepository = app(TokenRepository::class);
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('POST', '/oauth/personal-access-tokens', [
-                'name' => 'RandomTokenName',
+                'name'   => 'RandomTokenName',
+                'scopes' => ['read'],
             ])
             ->assertOk();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/users/' . $this->user->id . '/pats');
 
@@ -383,7 +384,7 @@ class UserManagerControllerTest extends FeatureTestCase
     #[Test]
     public function test_revoke_pa_ts_returns_no_content()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/users/' . $this->user->id . '/pats')
             ->assertNoContent();
@@ -395,7 +396,7 @@ class UserManagerControllerTest extends FeatureTestCase
         // a fresh user has no token
         $user = User::factory()->create();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/users/' . $user->id . '/pats')
             ->assertNoContent();
@@ -419,7 +420,7 @@ class UserManagerControllerTest extends FeatureTestCase
             'created_at'           => now(),
         ]);
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/users/' . $this->user->id . '/credentials');
 
@@ -446,7 +447,7 @@ class UserManagerControllerTest extends FeatureTestCase
             'created_at'           => now(),
         ]);
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/users/' . $this->user->id . '/credentials')
             ->assertNoContent();
@@ -457,7 +458,7 @@ class UserManagerControllerTest extends FeatureTestCase
     {
         DB::table('webauthn_credentials')->delete();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/users/' . $this->user->id . '/credentials')
             ->assertNoContent();
@@ -469,7 +470,7 @@ class UserManagerControllerTest extends FeatureTestCase
         $this->user['preferences->useWebauthnOnly'] = true;
         $this->user->save();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/users/' . $this->user->id . '/credentials')
             ->assertNoContent();
@@ -484,7 +485,7 @@ class UserManagerControllerTest extends FeatureTestCase
     {
         $user = User::factory()->create();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/users/' . $user->id)
             ->assertNoContent();
@@ -493,7 +494,7 @@ class UserManagerControllerTest extends FeatureTestCase
     #[Test]
     public function test_destroy_the_only_admin_returns_forbidden()
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/users/' . $this->admin->id)
             ->assertForbidden();
@@ -502,7 +503,7 @@ class UserManagerControllerTest extends FeatureTestCase
     #[Test]
     public function test_destroy_another_user_returns_forbidden() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('DELETE', '/api/v1/users/' . $this->anotherUser->id)
             ->assertForbidden()
@@ -514,7 +515,7 @@ class UserManagerControllerTest extends FeatureTestCase
     #[Test]
     public function test_promote_changes_admin_status() : void
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('PATCH', '/api/v1/users/' . $this->user->id . '/promote', [
                 'is_admin' => true,
@@ -532,7 +533,7 @@ class UserManagerControllerTest extends FeatureTestCase
         $path    = '/api/v1/users/' . $this->user->id . '/promote';
         $request = Request::create($path, 'PUT');
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('PATCH', $path, [
                 'is_admin' => true,
@@ -547,7 +548,7 @@ class UserManagerControllerTest extends FeatureTestCase
     #[Test]
     public function test_promote_another_user_returns_forbidden() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('PATCH', '/api/v1/users/' . $this->anotherUser->id . '/promote', [
                 'is_admin' => true,
@@ -566,7 +567,7 @@ class UserManagerControllerTest extends FeatureTestCase
         $path    = '/api/v1/users/' . $anotherAdmin->id . '/promote';
         $request = Request::create($path, 'PUT');
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('PATCH', $path, [
                 'is_admin' => false,
@@ -583,7 +584,7 @@ class UserManagerControllerTest extends FeatureTestCase
     {
         $this->assertTrue(User::admins()->count() == 1);
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('PATCH', '/api/v1/users/' . $this->admin->id . '/promote', [
                 'is_admin' => false,
@@ -602,7 +603,7 @@ class UserManagerControllerTest extends FeatureTestCase
         AuthLog::factory()->for($this->user, 'authenticatable')->failedLogin()->create();
         AuthLog::factory()->for($this->user, 'authenticatable')->create();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications')
             ->assertOk()
@@ -614,7 +615,7 @@ class UserManagerControllerTest extends FeatureTestCase
     {
         AuthLog::factory()->for($this->user, 'authenticatable')->beforeLastYear()->create();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications')
             ->assertOk()
@@ -627,7 +628,7 @@ class UserManagerControllerTest extends FeatureTestCase
         AuthLog::factory()->for($this->admin, 'authenticatable')->create();
         AuthLog::factory()->for($this->user, 'authenticatable')->create();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications')
             ->assertJsonCount(1);
@@ -641,7 +642,7 @@ class UserManagerControllerTest extends FeatureTestCase
     {
         AuthLog::factory()->for($this->user, 'authenticatable')->create();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications')
             ->assertJsonStructure([
@@ -676,7 +677,7 @@ class UserManagerControllerTest extends FeatureTestCase
             'logout_at' => $now,
         ]);
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications');
 
@@ -694,7 +695,7 @@ class UserManagerControllerTest extends FeatureTestCase
     {
         $this->logUserOut();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications')
             ->assertJsonCount(1)
@@ -708,7 +709,7 @@ class UserManagerControllerTest extends FeatureTestCase
     {
         $this->logUserIn();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications')
             ->assertJsonCount(1)
@@ -725,7 +726,7 @@ class UserManagerControllerTest extends FeatureTestCase
             'password' => 'wrong_password',
         ]);
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications?period=1')
             ->assertJsonCount(1)
@@ -742,7 +743,7 @@ class UserManagerControllerTest extends FeatureTestCase
         $this->travelBack();
         $this->logUserIn();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications?period=1')
             ->assertJsonCount(1);
@@ -760,7 +761,7 @@ class UserManagerControllerTest extends FeatureTestCase
         $this->logUserIn();
         $this->travelBack();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications?period=3')
             ->assertJsonCount(1);
@@ -778,7 +779,7 @@ class UserManagerControllerTest extends FeatureTestCase
         $this->logUserIn();
         $this->travelBack();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications?period=6')
             ->assertJsonCount(1);
@@ -796,7 +797,7 @@ class UserManagerControllerTest extends FeatureTestCase
         $this->logUserIn();
         $this->travelBack();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $response = $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications?period=12')
             ->assertJsonCount(1);
@@ -813,7 +814,7 @@ class UserManagerControllerTest extends FeatureTestCase
         AuthLog::factory()->for($this->user, 'authenticatable')->duringLastThreeMonth()->create();
         AuthLog::factory()->for($this->user, 'authenticatable')->duringLastMonth()->create();
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications?limit=' . $limit)
             ->assertOk()
@@ -841,7 +842,7 @@ class UserManagerControllerTest extends FeatureTestCase
             'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0',
         ]);
 
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications?period=1')
             ->assertJsonFragment([
@@ -856,7 +857,7 @@ class UserManagerControllerTest extends FeatureTestCase
     #[DataProvider('invalidQueryParameterProvider')]
     public function test_authentications_with_invalid_limit_returns_validation_error($limit) : void
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications?limit=' . $limit)
             ->assertInvalid(['limit']);
@@ -866,7 +867,7 @@ class UserManagerControllerTest extends FeatureTestCase
     #[DataProvider('invalidQueryParameterProvider')]
     public function test_authentications_with_invalid_period_returns_validation_error($period) : void
     {
-        Passport::actingAs($this->admin, [], 'api-guard');
+        Passport::actingAs($this->admin, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/users/' . $this->user->id . '/authentications?period=' . $period)
             ->assertInvalid(['period']);
@@ -902,8 +903,9 @@ class UserManagerControllerTest extends FeatureTestCase
      */
     protected function logUserOut() : void
     {
+        // A10: logout is POST-only now (the GET route answers 410).
         $this->actingAs($this->user, 'web-guard')
-            ->json('GET', '/user/logout');
+            ->json('POST', '/user/logout');
     }
 
     /**

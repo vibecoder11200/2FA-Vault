@@ -85,6 +85,14 @@ class TeamService
             throw new \Exception('Only the team owner can delete the team.');
         }
 
+        // B14: clean up membership pivots and shared-account rows so a soft-deleted
+        // team leaves no reusable shares behind.
+        $team->users()->detach();
+        \App\Models\SharedAccount::where('team_id', $team->id)->delete();
+        TeamInvitation::where('team_id', $team->id)
+            ->where('status', 'pending')
+            ->update(['status' => 'cancelled']);
+
         $team->delete();
 
         Log::info('Team deleted', [
@@ -293,7 +301,31 @@ class TeamService
             throw new \Exception('Cannot remove team owner.');
         }
 
-        $team->users()->detach($userIdToRemove);
+        $removedUser = User::find($userIdToRemove);
+
+        // B3: revocation is part of removal — drop the member's shared-account
+        // rows (wrapped keys included) and cancel their pending invitations so
+        // they cannot regain decryption by re-accepting an old invite.
+        DB::beginTransaction();
+
+        try {
+            $team->users()->detach($userIdToRemove);
+            \App\Models\SharedAccount::where('team_id', $team->id)
+                ->where('member_id', $userIdToRemove)
+                ->delete();
+
+            if ($removedUser) {
+                TeamInvitation::where('team_id', $team->id)
+                    ->where('email', $removedUser->email)
+                    ->where('status', 'pending')
+                    ->update(['status' => 'cancelled']);
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
 
         Log::info('Member removed from team', [
             'team_id'         => $team->id,
@@ -339,6 +371,13 @@ class TeamService
 
     /**
      * Share an account with a team
+     *
+     * B12 semantics: access_level is informational at the API level for shared
+     * recipients — there is currently NO mutation path available to a shared
+     * recipient (TwoFAccountPolicy::update is owner-only), so read vs write
+     * cannot be exercised. If a member mutation endpoint is added later, it
+     * MUST check the recipient's SharedAccount.access_level ('write' may edit
+     * metadata, 'read' may not) at the policy layer.
      *
      * @throws \Exception
      */

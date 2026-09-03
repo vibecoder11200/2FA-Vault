@@ -5,7 +5,6 @@ namespace App\Api\v1\Controllers;
 use App\Api\v1\Resources\UserSessionResource;
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\UserSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -16,7 +15,6 @@ class UserSessionController extends Controller
     /**
      * Display a listing of the user's active sessions.
      *
-     * @param  Request  $request
      * @return AnonymousResourceCollection
      */
     public function index(Request $request)
@@ -43,9 +41,8 @@ class UserSessionController extends Controller
     /**
      * Revoke a specific user session.
      *
-     * @param  Request  $request
      * @param  int  $id
-     * @return JsonResponse
+     * @return \Illuminate\Http\Response
      */
     public function destroy(Request $request, $id)
     {
@@ -63,6 +60,12 @@ class UserSessionController extends Controller
             DB::table('oauth_access_tokens')
                 ->where('id', $session->token_id)
                 ->update(['revoked' => true]);
+        } elseif (config('session.driver') === 'database') {
+            // Web-guard rows store the Laravel session id in token_id: with
+            // the database session driver, deleting the real sessions row
+            // makes the eviction effective (EnsureSessionValid rejects the
+            // next cookie request that carries this session id).
+            DB::table('sessions')->where('id', $session->token_id)->delete();
         }
 
         // Delete the user session record

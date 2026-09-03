@@ -18,6 +18,9 @@ return [
     |
     */
 
+    // Recommended: SESSION_DRIVER=database (see .env.example) so session
+    // revocation can evict real server-side session rows. The default stays
+    // env-driven ('file') for backward compatibility with existing deploys.
     'driver' => env('SESSION_DRIVER', 'file'),
 
     /*

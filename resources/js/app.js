@@ -108,3 +108,13 @@ app.provide('appSettingsStore', appSettings)
 
 // App mounting
 app.mount('#app')
+
+// E4: register the service worker AFTER mount so first paint is never
+// blocked. The SW scope is the app base (sw.js is served from public/).
+if ('serviceWorker' in navigator && !import.meta.env.DEV) {
+    window.addEventListener('load', () => {
+        import('./services/pwa')
+            .then(({ default: pwaService }) => pwaService.register())
+            .catch(error => console.debug('PWA registration failed', error))
+    })
+}

@@ -38,7 +38,7 @@ class BreachTest extends FeatureTestCase
     #[Test]
     public function test_check_email_forbidden_when_opt_in_disabled() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('POST', '/api/v1/breach/check-email', ['email' => 'me@example.com'])
             ->assertForbidden();
@@ -51,7 +51,7 @@ class BreachTest extends FeatureTestCase
         $this->user['preferences->breachMonitoring'] = true;
         $this->user->save();
 
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('POST', '/api/v1/breach/check-email', ['email' => 'pwned@example.com'])
             ->assertOk()
@@ -61,7 +61,7 @@ class BreachTest extends FeatureTestCase
     #[Test]
     public function test_check_service_does_not_require_opt_in() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/breach/check-service?service=adobe.com')
             ->assertOk()
@@ -71,7 +71,7 @@ class BreachTest extends FeatureTestCase
     #[Test]
     public function test_check_service_requires_service_param() : void
     {
-        Passport::actingAs($this->user, [], 'api-guard');
+        Passport::actingAs($this->user, ['legacy_full_access'], 'api-guard');
         $this
             ->json('GET', '/api/v1/breach/check-service')
             ->assertStatus(422);

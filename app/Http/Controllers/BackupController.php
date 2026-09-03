@@ -24,8 +24,16 @@ class BackupController extends Controller
     /**
      * Export encrypted backup
      *
-     * The server retrieves encrypted accounts and packages them.
-     * The client then encrypts the entire package with a backup password.
+     * Returns the backup PAYLOAD (format 2 marker). The SPA encrypts it
+     * client-side with the user-typed backup password (Argon2id + AES-256-GCM)
+     * and triggers the blob download (audit C1/C5). The server-side copy on
+     * the `backups` disk stays APP_KEY-encrypted as a disaster-recovery
+     * artifact.
+     *
+     * The legacy `password` request parameter is no longer part of the
+     * contract (it was never used server-side) — it is silently ignored if
+     * sent, and the legacy non-JSON GET path no longer accepts it either
+     * (it used to leak into query-string logs).
      *
      * @param Request $request
      * @return StreamedResponse|JsonResponse
@@ -47,14 +55,13 @@ class BackupController extends Controller
         }
 
         $validated = $request->validate([
-            'password' => 'required|string|min:8',
             'include_groups' => 'nullable|boolean',
         ]);
 
         $user = Auth::user();
 
         try {
-            // Generate backup structure (accounts still encrypted with user's master key)
+            // Generate backup payload (accounts still encrypted with user's master key)
             $includeGroups = $validated['include_groups'] ?? true;
             $backupData = $this->backupService->generateEncryptedBackup($user, $includeGroups);
 
@@ -62,32 +69,40 @@ class BackupController extends Controller
             $user->last_backup_at = now();
             $user->save();
 
-            $normalizedBackup = $this->backupService->normalizeVaultBackupData($backupData);
-
             Log::info('Backup exported', [
                 'user_id' => $user->id,
-                'account_count' => $normalizedBackup['account_count'] ?? 0,
+                'account_count' => $backupData['account_count'] ?? 0,
                 'groups_included' => $includeGroups,
             ]);
 
-            $filename = '2fa-vault-backup-' . now()->format('Y-m-d-His') . '.vault';
+            // C13: include the user id — same-second exports by different
+            // users used to collide on the `backups` disk.
+            $filename = sprintf(
+                '2fa-vault-backup-u%s-%s.vault',
+                $user->id,
+                now()->format('Y-m-d-His')
+            );
             $backupJson = json_encode($backupData, JSON_PRETTY_PRINT);
 
             // Store backup file encrypted at rest
             $encrypted = Crypt::encryptString($backupJson);
             Storage::disk('backups')->put($filename, $encrypted);
 
-            // For testing: return JSON response instead of download
+            // For JSON/SPA clients: return the payload so the frontend can
+            // encrypt it client-side and deliver the actual file (C5).
             if ($request->wantsJson() || $request->expectsJson()) {
                 return response()->json([
                     'filename' => $filename,
+                    'format' => BackupService::ENVELOPE_FORMAT_V2,
                     'size' => strlen($backupJson),
-                    'account_count' => $normalizedBackup['account_count'] ?? 0,
-                    'group_count' => isset($normalizedBackup['groups']) ? count($normalizedBackup['groups']) : 0,
+                    'account_count' => $backupData['account_count'] ?? 0,
+                    'group_count' => isset($backupData['groups']) ? count($backupData['groups']) : 0,
+                    'payload' => $backupData,
                 ]);
             }
 
-            // Return as downloadable file
+            // Legacy non-JSON path: return the plaintext payload as a
+            // downloadable file (no password involved).
             return response()->streamDownload(function () use ($backupJson) {
                 echo $backupJson;
             }, $filename, [
@@ -142,30 +157,39 @@ class BackupController extends Controller
             RateLimiter::hit($key, 3600);
         }
 
-        // Build validation rules - password only required for vault format
+        // Build validation rules. The `password` field is gone: vault-format
+        // files are decrypted client-side before upload (RT4); a legacy
+        // `password` value sent by old clients is silently ignored.
         $rules = [
-            'backup_file' => 'required|file',
+            'backup_file' => 'required|file|max:10240',
             'format' => $this->backupService->backupFormatValidationRule(),
             'conflict_resolution' => 'nullable|in:skip,replace,rename',
             'import_groups' => 'nullable|boolean',
         ];
-
-        // Password required only for vault format (we'll detect format after validation)
-        $rules['password'] = 'nullable|string|min:8';
 
         $validated = $request->validate($rules);
 
         $user = Auth::user();
 
         try {
-            // Read and validate backup file
+            // C8: read + decode the uploaded file once.
             $file = $request->file('backup_file');
             $backupData = json_decode($file->get(), true);
 
-            if (!$backupData) {
+            if (!is_array($backupData)) {
                 return response()->json([
                     'message' => 'Invalid backup file',
                     'errors' => ['backup_file' => ['The file is not valid JSON']]
+                ], 422);
+            }
+
+            // RT4: a format >= 2 envelope still carrying ciphertext (no
+            // top-level accounts) was NOT decrypted client-side. Refuse with
+            // a clear error — never fall back to the legacy plaintext path.
+            if ($this->backupService->isUndecryptedV2Envelope($backupData)) {
+                return response()->json([
+                    'message' => 'This backup file is password-encrypted. Decrypt it in the app first, then import the decrypted backup.',
+                    'errors' => ['backup_file' => ['The backup file must be decrypted in the app before import']]
                 ], 422);
             }
 
@@ -182,14 +206,6 @@ class BackupController extends Controller
                 ], 422);
             }
 
-            // Validate password requirement for vault format
-            if ($this->backupService->passwordRequiredForFormat($finalFormat) && empty($validated['password'])) {
-                return response()->json([
-                    'message' => 'The password field is required.',
-                    'errors' => ['password' => ['The password field is required.']]
-                ], 422);
-            }
-
             // Validate backup structure against selected format
             if (!$this->backupService->validateImportPayload($backupData, $finalFormat)) {
                 return response()->json([
@@ -203,6 +219,11 @@ class BackupController extends Controller
                 'conflict_resolution' => $validated['conflict_resolution'] ?? 'skip',
                 'import_groups' => $validated['import_groups'] ?? true,
             ];
+
+            // RT4: imports without a numeric format marker follow the legacy
+            // plaintext path — surface a warning banner in the summary.
+            $legacyWarning = $this->backupService->isVaultFormat($finalFormat)
+                && $this->backupService->isLegacyVaultImport($backupData);
 
             // Restore backup
             $result = $this->backupService->restoreEncryptedBackup(
@@ -227,6 +248,12 @@ class BackupController extends Controller
                 'failed_count' => $result['failed'],
                 'errors' => $result['errors'] ?? [],
                 'conflict_resolution' => $result['conflict_resolution'] ?? 'skip',
+                'encrypted_count' => $result['encrypted_count'] ?? 0,
+                'key_mismatch_warning' => $result['key_mismatch_warning'] ?? false,
+                'legacy_format_warning' => $legacyWarning,
+                // C3: lets the SPA attempt decryption and offer one-click
+                // deletion of just-imported undecryptable accounts.
+                'imported_account_ids' => $result['imported_ids'] ?? [],
             ]);
 
         } catch (\Exception $e) {
@@ -254,15 +281,26 @@ class BackupController extends Controller
      */
     public function metadata(Request $request): JsonResponse
     {
+        // C13: mimes content-sniffing rejected valid files whose extension was
+        // right but whose content-type guess failed — validate by extension.
         $validated = $request->validate([
-            'backup_file' => 'required|file|mimes:vault,json|max:10240'
+            'backup_file' => [
+                'required',
+                'file',
+                'max:10240',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if (!in_array(strtolower($value->getClientOriginalExtension()), ['vault', 'json'], true)) {
+                        $fail('The backup file must be a .vault or .json file.');
+                    }
+                },
+            ],
         ]);
 
         try {
             $file = $request->file('backup_file');
             $backupData = json_decode($file->get(), true);
 
-            if (!$backupData) {
+            if (!is_array($backupData)) {
                 return response()->json([
                     'message' => 'Invalid backup file format'
                 ], 400);

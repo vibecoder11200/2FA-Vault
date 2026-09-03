@@ -38,6 +38,12 @@ class StoreBackupDestinationRequest extends FormRequest
             'config.url'             => ['sometimes', 'nullable', 'string', 'max:255'],
             'config.username'        => ['sometimes', 'nullable', 'string', 'max:255'],
             'config.password'        => ['sometimes', 'nullable', 'string', 'max:255'],
+            // C1 (F3): per-destination backup encryption password (stored
+            // inside the always-encrypted config column).
+            'config.encryption_password' => ['sometimes', 'nullable', 'string', 'max:255'],
+            // Email destinations must explicitly opt in to attachments —
+            // and AutoBackupJob only attaches password-encrypted envelopes.
+            'config.email_attachments'   => ['sometimes', 'boolean'],
         ];
     }
 }

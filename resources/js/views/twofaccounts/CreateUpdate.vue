@@ -235,8 +235,16 @@
 
         const { data } = await form.put('/api/v1/twofaccounts/' + props.twofaccountId)
         if (form.errors.any() === false) {
+            // RT7/B7: when the secret changed on a shared account, the server
+            // dropped every member's wrapped key (it cannot re-wrap under
+            // E2EE). Tell the owner so they re-share from the team page.
+            if (data.shares_revoked === true) {
+                notify.warn({ text: t('warning.shares_revoked_re_share') })
+            }
             const index = twofaccounts.items.findIndex(acc => acc.id === data.id)
-            twofaccounts.items.splice(index, 1, data)
+            if (index !== -1) {
+                twofaccounts.items.splice(index, 1, data)
+            }
             twofaccounts.sortDefault()
             notify.success({ text: t('notification.account_updated') })
             router.push({ name: 'accounts' })
